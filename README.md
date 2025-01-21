@@ -232,4 +232,4 @@
         - `Start chat in daily notes, show in sidebar`
             - Adds the `AI chat window` in daily notes instead of current page and opens the window in right sidebar. You have a chat window open while you navigate different pages and use context from them to chat with.
         - `Summarise this page`
-            - Summarises the current page, and puts the summary on the last block of the page.
+            - Summarises the current page, and puts the summary on the last block of the page. 
