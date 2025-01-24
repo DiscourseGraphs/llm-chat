@@ -2,7 +2,7 @@
   (:require [cljs.core.async.interop :as asy :refer [<p!]]
             [cljs.core.async :as async :refer [<! >! go chan put! take! timeout]]
             [reagent.core :as r :refer [atom]]
-            [ui.components.quick-buttons :refer [ discourse-graph-this-page-button]]
+            [ui.components.discourse-graph-this-page :refer [ discourse-graph-this-page-button]]
             [cljs-http.client :as http]
             [ui.components.get-context :refer [get-context-button get-suggestions-button]]
             [ui.components.search-pinecone :refer [search-pinecone]]
@@ -660,7 +660,8 @@
         dgp-extract-query-pages-ref? (r/atom (:extract-query-pages-ref? dgp-data))
         dgp-active?                  (r/atom (:active? dgp-data))
         dgp-context                  (r/atom (:context dgp-data))
-
+        dgp-prompt-guide             (r/atom (:prompt-guide dgp-data))
+        dgp-pre-prompt               (r/atom (:pre-prompt  dgp-data))
 
 
         co-get-context-uid           (:uid (get-child-with-str
@@ -821,7 +822,8 @@
         dgp-extract-query-pages?
         dgp-extract-query-pages-ref?
         dgp-active?
-        dgp-context]
+        dgp-context
+        dgp-pre-prompt]
 
 
        [:> Divider]
