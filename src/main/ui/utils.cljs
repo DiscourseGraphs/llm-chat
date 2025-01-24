@@ -59,6 +59,7 @@
                            [(re-pattern "^@(.*?)$") ?.*?$-regex]
                            [?node :node/title ?node-Title]
                            [(re-find ?.*?$-regex ?node-Title)]])))))
+(extract-all-sources)
 
 
 (defn all-dg-nodes []
@@ -114,10 +115,48 @@
  (count (q '[:find ?t
              :where [?e :node/title]])))
 
+(defn get-uid-from-localstorage []
+  (let [user-data (loop [remaining  (reader/read-string
+                                      (.getItem (.-localStorage js/window) "globalAppState"))
+                         prev       nil]
+                    (if (= "~:user" prev)
+                      (first remaining)
+                      (recur (rest remaining) (first remaining))))]
+    (loop [remaining user-data
+           prev nil]
+      (when (seq remaining)
+        (if (= "~:uid" prev)
+          (first remaining)
+          (recur (rest remaining) (first remaining)))))))
 
+(defn get-current-user []
+  (let [user-uid (get-uid-from-localstorage)
+        username (first (flatten (q '[:find (pull ?duid [*])
+                                      :in $ ?user-uid
+                                      :where
+                                      [?eid :user/uid ?user-uid]
+                                      [?eid :user/display-page ?duid]
+                                      [?duid :node/title ?username]]
+                                   user-uid)))]
+    username))
+
+
+(defn get-all-users []
+  (q '[:find (pull ?user [*])
+       :where
+       [?eid :create/user ?uid]
+       [?duid :user/display-page ?user]]))
 
 (comment
-  (flatten extract-all-sources))
+  (get-all-users)
+  (mapv
+    (fn [mdata]
+     (-> mdata
+      first
+      :title))
+    (get-all-users)))
+
+
 
 (defn uid-to-block [uid]
   (q '[:find (pull ?e [*])
@@ -167,10 +206,10 @@
   ([s]
    (extract-from-code-block s false))
   ([s v?]
-   (let [pattern #"(?s)```javascript\n \n(.*?)\n```"
-         pres? (re-find pattern s)
+   (let [pattern         #"(?s)```javascript\n \n(.*?)\n```"
+         pres?           (re-find pattern s)
          relaxed-pattern #"(?s)```\s*(.*?)\s*```"
-         rpres? (re-find relaxed-pattern s)]
+         rpres?         (re-find relaxed-pattern s)]
      (cond
        pres?     (str (second pres?) " \n ")
        (and v?
@@ -840,44 +879,47 @@
 
 
 (defn image-to-text-for [nodes total-images-atom loading-atom image-prompt-str max-tokens]
-  (doseq [node nodes]
-    (let [url      (-> node :match :url)
-          uid      (-> node :uid)
-          text     (-> node :match :text)
-          block-string (-> node :string)
-          messages [{:role "user"
-                     :content [{:type "text"
-                                :text (str image-prompt-str)}
-                               {:type "image_url"
-                                :image_url {:url url}}]}]
-          settings  {:model       "gpt-4-vision-preview"
-                     :max-tokens  @max-tokens
-                     :temperature 0.9}
-          callback (fn [response]
-                      (let [res-str          (-> response
-                                               :body)
-                            new-url          (str "![" res-str "](" url ")")
-                            new-block-string (str/replace block-string markdown-image-pattern new-url)
-                            new-count        (dec @total-images-atom)]
-                        (p "image to text for uid" uid)
-                        (p "Old image description: " text)
-                        (p "old block string" block-string)
-                        (p "Image to text response received, new image description: " res-str)
-                        (p "New block string" new-block-string)
-                        (p "Images to describe count: " @total-images-atom)
-                        (if (zero? new-count)
-                          (do
-                            (p "All images described")
-                            (reset! loading-atom false))
-                          (swap! total-images-atom dec))
-                        (update-block-string
-                          uid
-                          new-block-string)))]
-      (p "Messages for image to text" messages)
-      (call-llm-api
-        {:messages messages
-         :settings settings
-         :callback callback}))))
+  (js/Promise.
+    (fn [resolve _]
+      (doseq [node nodes]
+        (let [url      (-> node :match :url)
+              uid      (-> node :uid)
+              text     (-> node :match :text)
+              block-string (-> node :string)
+              messages [{:role "user"
+                         :content [{:type "text"
+                                    :text (str image-prompt-str)}
+                                   {:type "image_url"
+                                    :image_url {:url url}}]}]
+              settings  {:model       "gpt-4-vision-preview"
+                         :max-tokens  @max-tokens
+                         :temperature 0.9}
+              callback (fn [response]
+                          (let [res-str          (-> response
+                                                   :body)
+                                new-url          (str "![" res-str "](" url ")")
+                                new-block-string (str/replace block-string markdown-image-pattern new-url)
+                                new-count        (dec @total-images-atom)]
+                            (p "image to text for uid" uid)
+                            (p "Old image description: " text)
+                            (p "old block string" block-string)
+                            (p "Image to text response received, new image description: " res-str)
+                            (p "New block string" new-block-string)
+                            (p "Images to describe count: " @total-images-atom)
+                            (if (zero? new-count)
+                              (do
+                                (p "All images described")
+                                (reset! loading-atom false)
+                                (resolve true))
+                              (swap! total-images-atom dec))
+                            (update-block-string
+                              uid
+                              new-block-string)))]
+          (p "Messages for image to text" messages)
+          (call-llm-api
+            {:messages messages
+             :settings settings
+             :callback callback}))))))
 
 
 ;; ---- UI ---
