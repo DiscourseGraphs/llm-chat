@@ -336,7 +336,7 @@
                                          struct
                                          top-parent
                                          nil
-                                         false)
+                                         true)
                                        (<p! (js/Promise.
                                               (fn [_]
                                                 (p (str pre "Calling openai api, with settings : " settings))
