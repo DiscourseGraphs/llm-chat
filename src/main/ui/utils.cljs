@@ -59,7 +59,8 @@
                            [(re-pattern "^@(.*?)$") ?.*?$-regex]
                            [?node :node/title ?node-Title]
                            [(re-find ?.*?$-regex ?node-Title)]])))))
-(extract-all-sources)
+(comment
+  (extract-all-sources))
 
 
 (defn all-dg-nodes []
