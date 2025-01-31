@@ -17,22 +17,30 @@
         (swap! res str  (str child-str "\n"))))
     res))
 
-(defn create-bare-struct [open-page-uid suggestion-uid]
+(defn create-bare-struct [open-page-uid suggestion-uid loading-messages-uid default-msg]
   (go
    (let [already-suggested? (block-has-child-with-str? open-page-uid  "AI: Discourse node suggestions")
          suggestion-comp-uid (gen-new-uid)
          struct             (if (nil? already-suggested?)
                               {:s "AI: Discourse node suggestions"
+                               :op false
                                :c [{:s "{{llm-dg-suggestions}}"
                                     :u suggestion-comp-uid
                                     :op false
                                     :c [{:s "Suggestions"
-                                         :u suggestion-uid}]}]}
+                                         :u suggestion-uid}
+                                        {:s "Loading messages"
+                                         :c [{:s default-msg
+                                              :u loading-messages-uid}]}]}]}
                               {:s "{{llm-dg-suggestions}}"
                                :op false
                                :u suggestion-comp-uid
                                :c [{:s "Suggestions"
-                                    :u suggestion-uid}]})
+                                    :u suggestion-uid}
+                                   {:s "Loading messages"
+                                    :c [{:s default-msg
+                                         :u loading-messages-uid}]}]})
+
          top-parent          (if (nil? already-suggested?)
                                open-page-uid
                                already-suggested?)]

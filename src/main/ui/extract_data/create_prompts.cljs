@@ -1,5 +1,5 @@
 (ns ui.extract-data.create-prompts
-  (:require [ui.utils :refer [p q model-mappings call-llm-api gen-new-uid extract-data create-struct]]
+  (:require [ui.utils :refer [p q update-block-string model-mappings call-llm-api gen-new-uid extract-data create-struct]]
             [cljs.core.async :refer [chan go <! >! put! close!]]
             [applied-science.js-interop :as j]))
 
@@ -52,8 +52,9 @@
    </example>")
 
 
-(defn get-dg-node-types [nodes-info]
+(defn get-dg-node-types [nodes-info loading-message-uid]
   (go
+
    (let [summary-prompt          (str
                                    general-dg-system-prompt
                                   "I want you to create summary of all the
@@ -75,11 +76,12 @@
 
      (println "discourse nodes" nodes-info)
      (println "summary" llm-generated-summary)
+     (update-block-string
+       loading-message-uid
+       (str "LLM extracted summary of the Discourse graph node types are: "
+            llm-generated-summary))
      {:summary  llm-generated-summary
       :with-definitions ""})))
-
-
-
 
 
 (defn extract-example []
@@ -95,12 +97,11 @@
          "\" This could link to a HYP page proposing a molecular binding mechanism as a hypothesis. The HYP page would in turn link to RES pages that either support or oppose the hypothesis.")))
 
 
-
-(defn extract-lab-ontology [nodes-info]
+(defn extract-lab-ontology [nodes-info loading-message-uid]
   (go
-   (let [ontology-prompt (str
-                           general-dg-system-prompt
-                           "I want you to extract the lab ontology in the
+    (let [ontology-prompt (str
+                            general-dg-system-prompt
+                            "I want you to extract the lab ontology in the
                            <format>
                            (Chronological node number) (Short-form-used-in-format) Description-extracted-from-the-data
                            - sub-description if provided
@@ -108,8 +109,8 @@
                            - sub-description if provided
                            </format>
                            "
-                           dg-nodes-example
-                           "Then your output should be (excluding the codeblock):
+                            dg-nodes-example
+                            "Then your output should be (excluding the codeblock):
                             ```
                             <exactly-follow-our-lab-ontology>
                             1. Result (RES) - is a research observation
@@ -121,12 +122,16 @@
                             Following is the actual data
                             <node-info>
                          ")
-         combined-prompt (str ontology-prompt
-                              (str nodes-info)
-                              "</node-info>")
-         llm-generated-prompt (<! (ask-llm-for-context combined-prompt))]
-     (println "lab ontology" llm-generated-prompt)
-     llm-generated-prompt)))
+          combined-prompt (str ontology-prompt
+                               (str nodes-info)
+                               "</node-info>")
+          llm-generated-prompt (<! (ask-llm-for-context combined-prompt))]
+      (println "lab ontology" llm-generated-prompt)
+      (update-block-string
+        loading-message-uid
+        (str "LLM extracted the lab ontology as: "
+             llm-generated-prompt))
+      llm-generated-prompt)))
 
 (defn dg-nodes-format [nodes-info]
   (reduce
@@ -141,14 +146,18 @@
     (extract-node-info all-nodes)
     (dg-nodes-format all-nodes)))
 
-(defn manual-prompt-guide [action-button-uid]
+(defn manual-prompt-guide [action-button-uid loading-message-uid]
   (js/Promise.
     (fn [resolve _]
       (go
        (let [get-all-discourse-nodes (-> (j/call-in js/window [:roamjs :extension :queryBuilder :getDiscourseNodes])
                                        (js->clj :keywordize-keys true))
              nodes-info              (extract-node-info get-all-discourse-nodes)
-             dg-node-types           (<! (get-dg-node-types nodes-info))
+
+             _ (update-block-string
+                              loading-message-uid
+                              "Querying for the discourse graph node types defined in the graph, then asking the llm to present it in predefined summary format.")
+             dg-node-types           (<! (get-dg-node-types nodes-info loading-message-uid))
              summary                 (:summary dg-node-types)
              entry-point             "Our lab uses Roam Research to organize our collaboration and knowledge sharing."
              dg-nodes                (str "We capture "
@@ -158,42 +167,54 @@
              example                 (str "\n <example> \n "
                                        (extract-example)
                                        "\n </example> \n")
+             _                      (update-block-string
+                                       loading-message-uid
+                                       "Extracted the example of a question from the graph.")
              your-job                (str "<your-job>
                                       \n Based on the text and images provided, propose some new discourse nodes.
                                       \n </your-job> \n")
+             _                      (update-block-string
+                                      loading-message-uid
+                                      "Using the discourse graph node types defined in the graph, then asking the llm to define the ontology used in our lab.")
              lab-ontology           (str "\n <instructions> \n
                                          \n <lab-ontology> \n"
-                                         (<! (extract-lab-ontology nodes-info))
+                                         (<! (extract-lab-ontology nodes-info loading-message-uid))
                                          "\n </lab-ontology> \n")
              response-format        (str "<expected-response-format> \n
-                                           - follow the following format, this is format of the following lines `node type - format to follow if the node is of this type`. For each suggestion put it on a new line."
+                                          \n - follow the following format, this is format of the following lines `node type - format to follow if the node is of this type`. For each suggestion put it on a new line."
                                       (dg-nodes-format nodes-info)
-                                      " <Important-note> replace the `Source` with actual source. </important-note>\n</expected-response-format>")
-             general-instructions  (str "<general-important-instructions>\n1. following the format does not mean degrading your answer quality. We want both follow the format and high quality suggestions. Make sure your {content} draws directly from the text and images provided.\n2. Please only reply with discourse node suggestions, not explanations, keep them high quality. \n</general-important-instructions>\n</instructions>\n"
+                                      " \n <Important-note> replace the `Source` with actual source. </important-note>\n \n</expected-response-format>")
+             general-instructions  (str "\n <general-important-instructions> \n 1. following the format does not mean degrading your answer quality. We want both follow the format and high quality suggestions. Make sure your {content} draws directly from the text and images provided.\n2. Please only reply with discourse node suggestions, not explanations, keep them high quality. \n</general-important-instructions>\n</instructions>\n"
                                         "\n Extracted data from pages:
-                                        <data-from-pages> \n")
-             combined-prompt (str
-                               entry-point
-                               dg-nodes
-                               example
-                               your-job
+                                         \n <data-from-pages> \n")
+             combined-prompt       (str
+                                     entry-point
+                                     dg-nodes
+                                     example
+                                     your-job
 
-                               ;; can't use as of now
-                               ;dg-nodes-description
-                               lab-ontology
-                               response-format
-                               general-instructions)]
+                                     ;; can't use as of now
+                                     ;dg-nodes-description
+                                     lab-ontology
+                                     response-format
+                                     general-instructions)]
+         (update-block-string
+           loading-message-uid
+           "LLM created a prompt for this action in your graph, you can see it in your left-sidebar, please check and modify the prompt for future use.")
          (let [prompt-uid (gen-new-uid)
+               pprompt-uid (gen-new-uid)
                struct {:s "Prompt"
                        :c [{:s "Pre-prompt"
+                            :u prompt-uid
                             :c [{:s combined-prompt
-                                 :u prompt-uid}]}]}]
+                                 :u pprompt-uid}]}]}]
            (create-struct
              struct
              action-button-uid
-             nil
-             false
-             #(p "created new prompt for dg this page"))
+             prompt-uid
+             true
+             #(p "created new prompt for dg this page")
+             1)
            (resolve combined-prompt)))))))
 
 

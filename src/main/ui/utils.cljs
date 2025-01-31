@@ -499,11 +499,13 @@
   ([struct top-parent chat-block-uid open-in-sidebar?]
    (create-struct struct top-parent chat-block-uid open-in-sidebar? #()))
   ([struct top-parent chat-block-uid open-in-sidebar? cb]
+   (create-struct struct top-parent chat-block-uid open-in-sidebar? cb 0))
+  ([struct top-parent chat-block-uid open-in-sidebar? cb sidebar-pos]
    (let [pre   "*Creating struct*: "
          stack (atom [struct])
          res (atom [top-parent])]
      (p pre struct)
-     (p (str pre "open in sidebar?") open-in-sidebar?)
+     (p (str pre "open in sidebar?") open-in-sidebar? "order" sidebar-pos)
      (go
        (while (not-empty @stack)
           (let [cur                  (first @stack)
@@ -541,7 +543,7 @@
          (<p! (-> (j/call-in js/window [:roamAlphaAPI :ui :rightSidebar :addWindow]
                     (clj->js {:window {:type "block"
                                        :block-uid chat-block-uid
-                                       :order 0}}))
+                                       :order sidebar-pos}}))
                 (.then (fn []
                           (do
                            (p "Window added to right sidebar")

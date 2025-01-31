@@ -6,7 +6,7 @@
             [ui.components.chat :refer [chat-context]]
             [ui.components.chin :refer [chin]]
             [ui.actions.dg-this-page :refer [create-bare-struct ask-llm]]
-            [ui.utils :refer [button-popover button-with-tooltip watch-string model-mappings get-safety-settings update-block-string-for-block-with-child settings-button-popover image-to-text-for p get-child-of-child-with-str title->uid q block-has-child-with-str? call-llm-api update-block-string uid->title log get-child-with-str get-child-of-child-with-str-on-page get-open-page-uid get-block-parent-with-order get-focused-block create-struct gen-new-uid default-chat-struct get-todays-uid]]
+            [ui.utils :refer [button-popover create-new-block button-with-tooltip watch-string model-mappings get-safety-settings update-block-string-for-block-with-child settings-button-popover image-to-text-for p get-child-of-child-with-str title->uid q block-has-child-with-str? call-llm-api update-block-string uid->title log get-child-with-str get-child-of-child-with-str-on-page get-open-page-uid get-block-parent-with-order get-focused-block create-struct gen-new-uid default-chat-struct get-todays-uid]]
             [ui.extract-data.create-prompts :refer [manual-prompt-guide]]
             ["@blueprintjs/core" :as bp :refer [ControlGroup Checkbox Tooltip HTMLSelect Button ButtonGroup Card Slider Divider Menu MenuItem Popover MenuDivider]]))
 
@@ -45,6 +45,7 @@
                                (go
                                  (let [suggestion-uid (gen-new-uid)
                                        open-page-uid  (<p! (get-open-page-uid))
+                                       loading-message-uid (gen-new-uid)
                                        dgp-block-uid  (block-has-child-with-str? (title->uid "LLM chat settings") "Quick action buttons")
                                        dgp-discourse-graph-page-uid (:uid (get-child-with-str dgp-block-uid "Discourse graph this page"))]
                                    (println "suggestion uid" suggestion-uid "dgp-block-uid" dgp-block-uid "dgp-discourse-graph-page-uid" dgp-discourse-graph-page-uid)
@@ -56,11 +57,12 @@
                                              (fn [resolve _]
                                                (do
                                                 (println "create bare struct")
-                                                (create-bare-struct open-page-uid suggestion-uid)
+                                                (create-bare-struct open-page-uid suggestion-uid loading-message-uid
+                                                  "Setting this up: This graph does not have a pre-prompt yet, setting up the prompt now...")
                                                 (resolve :done))))
                                            (.then (fn []
                                                    (println "get prompt")
-                                                   (manual-prompt-guide dgp-discourse-graph-page-uid)))
+                                                   (manual-prompt-guide dgp-discourse-graph-page-uid loading-message-uid)))
                                            (.then (fn [prompt]
                                                     (reset! pre-prompt prompt)
                                                     (println "ask llm" @pre-prompt pre-prompt)
@@ -78,7 +80,11 @@
                                                         open-page-uid)))))
                                      (do
                                        (println "pre prompt exists")
-                                       (create-bare-struct open-page-uid suggestion-uid)
+                                       (create-bare-struct
+                                         open-page-uid
+                                         suggestion-uid
+                                         loading-message-uid
+                                         "Asking llm please wait...")
                                        (ask-llm
                                          block-uid
                                          default-model

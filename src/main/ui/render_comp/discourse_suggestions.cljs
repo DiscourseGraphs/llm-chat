@@ -479,6 +479,9 @@
 (defn discourse-node-suggestions-ui [block-uid]
  #_(println "block uid for chat" block-uid)
  (let [suggestions-data (get-child-with-str block-uid "Suggestions")
+       loading-data     (get-child-with-str block-uid "Loading messages")
+       _ (println "** loading data" loading-data)
+       loading-msgs     (r/atom (:children loading-data))
        type             (get-child-with-str block-uid "Type")
        similar-nodes-as-individuals (r/atom false)
        similar-nodes-as-group       (r/atom true)
@@ -496,6 +499,10 @@
      uid
      (fn [_ aft]
        (reset! suggestions (:children aft))))
+   (watch-children
+     (:uid loading-data)
+     (fn [_ aft]
+       (reset! loading-msgs (:children aft))))
    (fn [_]
      [:div
         {:class-name (str "dg-suggestions-container-" block-uid)
@@ -512,45 +519,52 @@
                         :border "2px solid rgba(0, 0, 0, 0.2)"
                         :border-radius "8px"}}
 
-       [chat-history uid suggestions selections cy-el]
-       [:div.bottom-comp
-        [:div.chat-input-container
-         {:style {:display "flex"
-                  :flex-direction "row"}}]
-        [:div
-         {:class-name (str "messages-chin-")
-          :style {:display "flex"
-                  :flex-direction "row"
-                  :justify-content "space-between"
-                  :padding "5px"
-                  :align-items "center"}}
-         [:div.checkboxes
-          {:style {:display "flex"
-                   :flex-direction "row"
-                   :align-items "center"}}
-          #_[semantic-search-for-selected-suggestions as-indi-loading? selections]
-          #_[as-group as-group-loading? selections uid]
-          #_[visualise-suggestions running? selections already-exist? cy-el block-uid]]
-         [:div.buttons
-          {:style {:display "flex"
-                   :flex-direction "row"
-                   :align-items "center"}}
-          [button-with-tooltip
-           "For each selected suggestion create new discourse node, this is like bulk creation. "
-           [:> Button {:class-name (str "create-node-button")
-                       :minimal true
-                       :fill false
-                       ;:style {:background-color "whitesmoke"}
-                       :on-click (fn [_]
-                                   (doseq [child @selections]
-                                     (let [block-uid    (:uid child)
-                                           block-string (:string (ffirst (uid-to-block block-uid)))]
-                                       (do
-                                         (create-discourse-node-with-title block-string block-uid)
-                                         (when (template-data-for-node block-string)
-                                           (p "Suggestion node created, updating block string")
-                                           (update-block-string block-uid (str "^^ {{[[DONE]]}}" block-string "^^")))))))}
-            "Create selected suggestions "]]]]]]])))
+       (if (some? @suggestions)
+         [:div.show-sug
+          [chat-history uid suggestions selections cy-el]
+          [:div.bottom-comp
+           [:div.chat-input-container
+            {:style {:display "flex"
+                     :flex-direction "row"}}]
+           [:div
+            {:class-name (str "messages-chin-")
+             :style {:display "flex"
+                     :flex-direction "row"
+                     :justify-content "space-between"
+                     :padding "5px"
+                     :align-items "center"}}
+            [:div.checkboxes
+             {:style {:display "flex"
+                      :flex-direction "row"
+                      :align-items "center"}}
+             #_[semantic-search-for-selected-suggestions as-indi-loading? selections]
+             #_[as-group as-group-loading? selections uid]
+             #_[visualise-suggestions running? selections already-exist? cy-el block-uid]]
+            [:div.buttons
+             {:style {:display "flex"
+                      :flex-direction "row"
+                      :align-items "center"}}
+             [button-with-tooltip
+              "For each selected suggestion create new discourse node, this is like bulk creation. "
+              [:> Button {:class-name (str "create-node-button")
+                          :minimal true
+                          :fill false
+                          ;:style {:background-color "whitesmoke"}
+                          :on-click (fn [_]
+                                      (doseq [child @selections]
+                                        (let [block-uid    (:uid child)
+                                              block-string (:string (ffirst (uid-to-block block-uid)))]
+                                          (do
+                                            (create-discourse-node-with-title block-string block-uid)
+                                            (when (template-data-for-node block-string)
+                                              (p "Suggestion node created, updating block string")
+                                              (update-block-string block-uid (str "^^ {{[[DONE]]}}" block-string "^^")))))))}
+               "Create selected suggestions "]]]]]]
+         [:div {:style {:padding "5px"}}
+           (println "** loading message" @loading-msgs)
+          [:div {:style {:padding "5px"}}
+           (str  (:string (first @loading-msgs)))]])]])))
+
 
 
 
