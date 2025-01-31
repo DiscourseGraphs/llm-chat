@@ -69,16 +69,15 @@
                                 :extract-query-pages? @extract-query-pages?
                                 :only-pages?          @extract-query-pages-ref?
                                 :vision?              vision?})
-          context-c          (extract-context-children-data-as-str pre-prompt)
           content            (if vision?
                                (vec
                                  (concat
                                    [{:type "text"
-                                     :text (str @context-c)}]
+                                     :text (str pre-prompt)}]
                                    extracted-qry-pg))
                                (clojure.string/join
                                  "\n"
-                                 [(str @context-c)
+                                 [(str pre-prompt)
                                   extracted-qry-pg]))
           messages           [{:role "user"
                                :content content}]
@@ -92,6 +91,7 @@
                (fn [_]
                  (p (str pre "Calling openai api, with settings : " settings))
                  (p (str pre "and messages : " messages))
+                 (p "context""\n ******************** \n" pre-prompt)
                  (p (str pre "Now sending message and wait for response ....."))
                  (call-llm-api
                    {:messages messages

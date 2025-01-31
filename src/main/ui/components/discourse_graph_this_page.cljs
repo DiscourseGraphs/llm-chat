@@ -60,11 +60,10 @@
                                                 (resolve :done))))
                                            (.then (fn []
                                                    (println "get prompt")
-                                                   (let [prompt (manual-prompt-guide dgp-discourse-graph-page-uid)]
-                                                      (println "prompt" prompt)
-                                                      (reset! pre-prompt prompt))))
+                                                   (manual-prompt-guide dgp-discourse-graph-page-uid)))
                                            (.then (fn [prompt]
-                                                    (println "ask llm")
+                                                    (reset! pre-prompt prompt)
+                                                    (println "ask llm" @pre-prompt pre-prompt)
                                                     (ask-llm
                                                         block-uid
                                                         default-model
@@ -74,9 +73,9 @@
                                                         extract-query-pages?
                                                         extract-query-pages-ref?
                                                         active?
-                                                        pre-prompt
-                                                      suggestion-uid
-                                                      open-page-uid)))))
+                                                        @pre-prompt
+                                                        suggestion-uid
+                                                        open-page-uid)))))
                                      (do
                                        (println "pre prompt exists")
                                        (create-bare-struct open-page-uid suggestion-uid)
@@ -89,7 +88,7 @@
                                          extract-query-pages?
                                          extract-query-pages-ref?
                                          active?
-                                         pre-prompt
+                                         @pre-prompt
                                          suggestion-uid
                                          open-page-uid))))))}
         "Discourse graph this page"]]]]))
