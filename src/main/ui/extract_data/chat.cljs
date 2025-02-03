@@ -309,7 +309,7 @@
 (defn node-count [t]
   (filter
     #(let [s (second %)]
-       (println s)
+       (p s)
        (when (clojure.string/starts-with? s (str "[[" t "]]"))
          %))
     dg-nodes))

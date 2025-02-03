@@ -11,14 +11,14 @@
                   :temperature 0.9
                   :max-tokens  400}
         out-ch  (chan)]
-    (println "***asking llm for context***" prompt)
+    (p "***asking llm for context***" prompt)
     (call-llm-api
       {:messages messages
        :settings settings
        :callback (fn [response]
                    (go
                      (let [body-text (-> response :body)]
-                       (println "***llm response***" body-text)
+                       (p "***llm response***" body-text)
                        (put! out-ch body-text)
                        (close! out-ch))))})
     out-ch))
@@ -74,8 +74,8 @@
 
      ;; do:  With definitions Following will not work for now because we don't have a way to eraisly extract the examples of particular type.
 
-     (println "discourse nodes" nodes-info)
-     (println "summary" llm-generated-summary)
+     (p "discourse nodes" nodes-info)
+     (p "summary" llm-generated-summary)
      (update-block-string
        loading-message-uid
        (str "LLM extracted summary of the Discourse graph node types are: "
@@ -126,7 +126,7 @@
                                (str nodes-info)
                                "</node-info>")
           llm-generated-prompt (<! (ask-llm-for-context combined-prompt))]
-      (println "lab ontology" llm-generated-prompt)
+      (p "lab ontology" llm-generated-prompt)
       (update-block-string
         loading-message-uid
         (str "LLM extracted the lab ontology as: "

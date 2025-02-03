@@ -93,7 +93,7 @@
         user-notes     (ffirst (extract-blocks-by-user
                                  template-name
                                  round-table))]
-    (println "lab updates" lab-updates "round table" round-table)
+    (p "lab updates" lab-updates "round table" round-table)
     {:user-notes            user-notes
      :user-notes-uid        (:uid user-notes)
      :lab-updates-uid       lab-updates
@@ -186,7 +186,7 @@
                                      :u parent-block-uid
                                      :c [{:s ""
                                           :u res-block-uid}]})]
-    (println "latest meeting string")
+    (p "latest meeting string")
     (create-struct
       struct
       top-parent
@@ -218,7 +218,7 @@
    step-1-prompt
    active?]
   (let [disabled? (r/atom true)]
-    (println "prior work" active? disabled?)
+    (p "prior work" active? disabled?)
     (fn []
       (let [mutation-callback (fn mutation-callback [mutations observer]
                                 (doseq [mutation mutations]
@@ -228,7 +228,7 @@
                                           dg-node?      (if (some? page-title)
                                                           (some? (is-discourse-node? page-title))
                                                           false)]
-                                      ;(println "Mutation page" page-title "::" dg-node? @disabled?)
+                                      ;(p "Mutation page" page-title "::" dg-node? @disabled?)
                                       (if dg-node?
                                         (reset! disabled? false)
                                         (reset! disabled? true))))))
@@ -358,7 +358,7 @@
                                           name-in-meetings-page (db->meetings-username current-user)
                                           title-element (.querySelector js/document "h1.rm-title-display span")
                                           page-title    (when title-element (.-textContent title-element))]
-                                      ;(println "Mutation page" page-title "::" name-in-meetings-page)
+                                      ;(p "Mutation page" page-title "::" name-in-meetings-page)
                                       (if (and (some? page-title)
                                             (or
                                              (= page-title (str current-user "/Home"))
@@ -442,7 +442,7 @@
                                           :settings settings
                                           :callback (fn [response]
                                                       (let [res-str (-> response :body)]
-                                                        (println "ONE ON ONE MEeting :::: " res-str)
+                                                        (p "ONE ON ONE MEeting :::: " res-str)
                                                         (update-block-string
                                                           stage-1-block-uid
                                                           (str res-str))))})))))}
@@ -595,7 +595,7 @@
                                                              :settings settings
                                                              :callback (fn [response]
                                                                          (let [res-str (-> response :body)]
-                                                                           (println "Stage 1 :::: " res-str)
+                                                                           (p "Stage 1 :::: " res-str)
                                                                            (update-block-string
                                                                              stage-1-block-uid
                                                                              (str res-str))
@@ -612,7 +612,7 @@
                                                                      stage-1-res)
                                              llm-context           [{:role "user"
                                                                      :content stage-2-prompt}]]
-                                         (println stage-2-prompt)
+                                         (p stage-2-prompt)
                                          (call-llm-api
                                            {:messages llm-context
                                             :settings settings
@@ -624,7 +624,7 @@
                                                                                                     str/trim
                                                                                                     extract-from-code-block))
                                                                             :keywordize-keys true)]
-                                                          (println "Stage 2 :::: " suggestions ref-block-uid)
+                                                          (p "Stage 2 :::: " suggestions ref-block-uid)
                                                           (doseq [sug suggestions]
                                                             (create-new-block
                                                               ref-block-uid
@@ -880,9 +880,9 @@
                                          ai-block? (ai-block-exists? open-page-uid)]
                                      (p (str pre "block with `AI chats` exist? " ai-block?))
                                      (p (str pre "context" context))
-                                     ;(println "open page uid" open-page-uid)
-                                     ;(println "page title" page-title)
-                                     ;(println "extract block" block-data)
+                                     ;(p "open page uid" open-page-uid)
+                                     ;(p "page title" page-title)
+                                     ;(p "extract block" block-data)
                                      (if (some? ai-block?)
                                        (do
                                         (js/console.time "Chat with this page")
@@ -991,15 +991,15 @@
                               res-ch       (http/post url {:with-credentials? false
                                                            :headers headers
                                                            :json-params multiple-query-data})]
-                          #_(println "SENDING EMBEDDINGS REQUEST" (count (all-dg-nodes))) ""
-                          #_(println "DATA : " (take 2 upsert-data))
-                          (println "query data" single-query-data)
+                          #_(p "SENDING EMBEDDINGS REQUEST" (count (all-dg-nodes))) ""
+                          #_(p "DATA : " (take 2 upsert-data))
+                          (p "query data" single-query-data)
                           (take! res-ch (fn [res]
                                           (let [embeddings (->> (js->clj (-> res :body ) :keywordize-keys true)
                                                              (map
                                                                (fn [x]
                                                                  (str (-> x :metadata :title) "- Score: " (:score x)))))]
-                                            #_(println "GOT EMBEDDINGS :" "--" embeddings))))))}
+                                            #_(p "GOT EMBEDDINGS :" "--" embeddings))))))}
            "Create embeddings"]]
        #_[:> Divider]
        #_[:div

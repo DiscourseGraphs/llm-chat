@@ -14,7 +14,6 @@
         children (sort-by :order (:children @context))]
     (doseq [child children]
       (let [child-str (:string child)]
-        ;(println "res " child-str)
         (swap! res str  (str child-str "\n"))))
     res))
 
@@ -41,7 +40,6 @@
 
 
       (fn [_]
-        #_(println "--" (get-child-of-child-with-str-on-page "llm chat" "Quick action buttons" button-name "Context"))
         [:> ButtonGroup
          {:class-name "button-with-settings"
           :style {:overflow "hidden"

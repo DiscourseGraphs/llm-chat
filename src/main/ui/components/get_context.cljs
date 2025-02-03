@@ -116,7 +116,7 @@
         children (sort-by :order (:children @context))]
     (doseq [child children]
       (let [child-str (:string child)]
-        ;(println "res " child-str)
+        ;(p "res " child-str)
         (swap! res str  (str child-str "\n"))))
     res))
 

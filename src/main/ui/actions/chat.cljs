@@ -38,7 +38,6 @@
                                    :body)]
                      (create-new-block m-uid "last" (str "**Assistant:** " res-str) (js/setTimeout
                                                                                       (fn []
-                                                                                        #_(println "new block in messages")
                                                                                         (p (str pre "Update token count, after llm response"))
                                                                                         (count-tokens-api {:message res-str
                                                                                                            :model (:model settings)
@@ -72,7 +71,6 @@
                             extract-query-pages?
                             extract-query-pages-ref?
                             vision?]}]
-  #_(println "load context ")
   (p "*load context* for block with uid:" parent-id "get-linked-refs? " @get-linked-refs? "extract-query-pages? " @extract-query-pages? "extract-query-pages-ref?" @extract-query-pages-ref?)
   (let [pre      "*load context* :"
         messages (get-child-with-str parent-id "Messages")
@@ -99,7 +97,6 @@
               cstr (:string child)
               order (+ m-len (:order child))]
           (do
-            #_(println "order ------>" order)
             (cond
               (or (= "{{query block}}"
                     cstr)
@@ -151,7 +148,6 @@
      (do
        (p (str pre "refresh messages window with parent-id: " parent-id))
        (reset! messages-atom (get-child-with-str parent-id "Messages"))
-       #_(println "messages atom reset")
        (send-context-and-message  messages-atom parent-id active? settings token-count-atom @ext-context))
      (do
        (p (str pre "refresh chat window with parent-id: " parent-id))

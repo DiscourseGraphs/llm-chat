@@ -28,8 +28,7 @@
                :fill false
                :small true
                :loading @active?
-               :on-click #(do #_(println "clicked send message compt")
-                            (callback {}))}]])
+               :on-click #(callback {})}]])
 
 
 (defn gemini-safety-component [block-uid]

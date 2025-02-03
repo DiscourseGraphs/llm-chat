@@ -62,7 +62,7 @@
                                                                                :top-k 3})})]
                        (take! res-ch (fn [res]
                                        (let  [res     (-> res :body first)
-                                              _       (println "GOT RESPONSE" res)
+                                              _       (p "GOT RESPONSE" res)
                                               matches (str "``` \n "
                                                            (clojure.string/join
                                                             " \n "
@@ -108,12 +108,12 @@
                                                                                          :string
                                                                                          "[[ISS]] - Perform a literature review on the role of myosin catch bonding in cellular processes, focusing on its impact on endocytosis under varying tension conditions",
                                                                                          :uid "r5EQJeiTb"}]
-                               _ (println "before suggestions")
+                               _ (p "before suggestions")
                                suggestion-nodes (vals
                                                   (suggested-nodes
                                                     (mapv
                                                       (fn [node]
-                                                        (println "node" node)
+                                                        (p "node" node)
                                                         {:string (:string node)
                                                          :uid    (:uid    node)})
                                                       selected)))
@@ -152,11 +152,11 @@
                                                             selected))))
                                extra-data   (concat suggestion-nodes suggestion-edges)]
                            (do
-                             ;(println "Visualise button clicked")
-                             ;(println "Selected" (count @similar-nodes))
+                             ;(p "Visualise button clicked")
+                             ;(p "Selected" (count @similar-nodes))
                              (if (some? @already-exist?)
                                (let [el (first (.getElementsByClassName js/document (str "cytoscape-main-" @already-exist?)))]
-                                 (println "rendering cytoscape")
+                                 (p "rendering cytoscape")
                                  (rd/render [cytoscape-component @already-exist? cy-el similar-nodes extra-data] el))
                                (create-struct
                                  struct
@@ -167,7 +167,7 @@
                                     (fn [_]
                                       (let [el (first (.getElementsByClassName js/document (str "cytoscape-main-" cyto-uid)))]
                                         (do
-                                          (println "rendering cytoscape")
+                                          (p "rendering cytoscape")
                                           (rd/render [cytoscape-component cyto-uid cy-el similar-nodes extra-data] el)
                                           (when @already-exist?
                                             true))))
@@ -477,10 +477,10 @@
 
 
 (defn discourse-node-suggestions-ui [block-uid]
- #_(println "block uid for chat" block-uid)
+ #_(p "block uid for chat" block-uid)
  (let [suggestions-data (get-child-with-str block-uid "Suggestions")
        loading-data     (get-child-with-str block-uid "Loading messages")
-       _ (println "** loading data" loading-data)
+       _ (p "** loading data" loading-data)
        loading-msgs     (r/atom (:children loading-data))
        type             (get-child-with-str block-uid "Type")
        similar-nodes-as-individuals (r/atom false)
@@ -561,7 +561,7 @@
                                               (update-block-string block-uid (str "^^ {{[[DONE]]}}" block-string "^^")))))))}
                "Create selected suggestions "]]]]]]
          [:div {:style {:padding "5px"}}
-           (println "** loading message" @loading-msgs)
+           (p "** loading message" @loading-msgs)
           [:div {:style {:padding "5px"}}
            (str  (:string (first @loading-msgs)))]])]])))
 

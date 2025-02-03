@@ -434,7 +434,7 @@
 
 
 (defn create-new-block [parent-uid order string callback]
-  #_(println "create new block" parent-uid)
+  #_(p "create new block" parent-uid)
   (-> (j/call-in js/window [:roamAlphaAPI :data :block :create]
         (clj->js {:location {:parent-uid parent-uid
                              :order       order}
@@ -463,7 +463,7 @@
         (clj->js {:block {:uid    block-uid
                           :string string}}))
     (.then (fn []
-             #_(println "-- updated block string now moving --")
+             #_(p "-- updated block string now moving --")
              (move-block parent-uid order block-uid)))))
 
 
@@ -526,7 +526,7 @@
                                        :open      (if (some? op) op true)}]
               (swap! stack rest)
               (swap! stack #(vec (concat % (sort-by :order c))))
-              ;(println "block-" string "-parent-" parent #_(first @res))
+              ;(p "block-" string "-parent-" parent #_(first @res))
               (p (str pre "creating with args: " t  " -- " args))
               (cond
                 (some? t) (<p! (create-new-page t (if (some? u) u  new-uid)))
@@ -866,11 +866,11 @@
     (take! res-ch callback)))
 
 (defn call-llm-api [{:keys [messages settings callback]}]
-  (println "SETTINGS" settings)
+  (p "SETTINGS" settings)
   (let [model (model-type (:model settings))
         new-settings {:model (:model settings)}]
-    (println "MODEL NAME" model)
-    (println "calling llm api" messages settings callback)
+    (p "MODEL NAME" model)
+    (p "calling llm api" messages settings callback)
     (case model
       :o1         (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-complete"
                     messages new-settings callback)
@@ -1008,7 +1008,7 @@
               :fill false
               :small true
               :loading @active?
-              :on-click #(do #_(println "clicked send message compt")
+              :on-click #(do #_(p "clicked send message compt")
                            (callback {}))}])
 
 (defn button-popover
@@ -1229,12 +1229,12 @@
                                        [0 2])
                        :on-change (fn [e]
                                     (let [fe (js/parseFloat (.toFixed e 2))]
-                                      (println "E" fe (type fe))
+                                      (p "E" fe (type fe))
                                       (update-block-string-for-block-with-child block-uid "Settings" "Temperature" (str fe))
                                       (reset! default-temp fe)))
                        :on-release (fn [e]
                                      (let [fe (js/parseFloat (.toFixed e 2))]
-                                       (println "E" fe)
+                                       (p "E" fe)
                                        (update-block-string-for-block-with-child block-uid "Settings" "Temperature" (str fe))
                                        (reset! default-temp fe)))}]]]]
         [:> MenuItem

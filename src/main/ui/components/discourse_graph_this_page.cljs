@@ -22,7 +22,7 @@
                                         context
                                         pre-prompt]
   (fn [_]
-    #_(println "--" (get-child-of-child-with-str-on-page "llm chat" "Quick action buttons" button-name "Context"))
+    #_(p "--" (get-child-of-child-with-str-on-page "llm chat" "Quick action buttons" button-name "Context"))
     [:> ButtonGroup
      {:class-name "button-with-settings"
       :style {:overflow "hidden"
@@ -39,7 +39,7 @@
                    :small true
                    :loading @active?
                    :on-click (fn [e]
-                               (println "clicked discourse graph this page")
+                               (p "clicked discourse graph this page")
                                (when (not @active?)
                                  (reset! active? true))
                                (go
@@ -48,23 +48,23 @@
                                        loading-message-uid (gen-new-uid)
                                        dgp-block-uid  (block-has-child-with-str? (title->uid "LLM chat settings") "Quick action buttons")
                                        dgp-discourse-graph-page-uid (:uid (get-child-with-str dgp-block-uid "Discourse graph this page"))]
-                                   (println "suggestion uid" suggestion-uid "dgp-block-uid" dgp-block-uid "dgp-discourse-graph-page-uid" dgp-discourse-graph-page-uid)
-                                   (println "pre-prompt" @pre-prompt)
+                                   (p "suggestion uid" suggestion-uid "dgp-block-uid" dgp-block-uid "dgp-discourse-graph-page-uid" dgp-discourse-graph-page-uid)
+                                   (p "pre-prompt" @pre-prompt)
                                    (if (not (some? @pre-prompt))
                                      (do
-                                       (println "create bare struct")
+                                       (p "create bare struct")
                                        (<!
                                          (do
-                                          (println "create bare struct")
+                                          (p "create bare struct")
                                           (create-bare-struct open-page-uid suggestion-uid loading-message-uid
                                             "Setting this up: This graph does not have a pre-prompt yet, setting up the prompt now...")))
                                        (do
-                                        (println "get prompt")
+                                        (p "get prompt")
                                         (let [prompt (<! (manual-prompt-guide dgp-discourse-graph-page-uid loading-message-uid))]
-                                          (println "prompt" prompt)
+                                          (p "prompt" prompt)
                                           (reset! pre-prompt prompt)))
                                        (do
-                                         (println "ask llm" @pre-prompt pre-prompt)
+                                         (p "ask llm" @pre-prompt pre-prompt)
                                          (ask-llm
                                            block-uid
                                            default-model
@@ -78,7 +78,7 @@
                                            suggestion-uid
                                            open-page-uid)))
                                      (do
-                                       (println "pre prompt exists")
+                                       (p "pre prompt exists")
                                        (create-bare-struct
                                          open-page-uid
                                          suggestion-uid

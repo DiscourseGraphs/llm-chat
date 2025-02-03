@@ -307,7 +307,7 @@
 
 
 (defn cytoscape-component [block-uid cy-el elements extra-data]
-  (println "cytoscape component")
+  (p "cytoscape component")
   (fn []
     [:div.cytoscape-container
      [:div
@@ -321,7 +321,7 @@
 
 
 (defn cytoscape-initial-component [block-uid message]
-  (println "Initial cytoscape component")
+  (p "Initial cytoscape component")
   [:div
    {:class-name (str "cytoscape-main-" block-uid)}
    message

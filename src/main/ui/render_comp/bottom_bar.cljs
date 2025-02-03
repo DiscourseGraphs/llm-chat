@@ -35,7 +35,7 @@
       :on-click (fn []
                   (do 
                     (swap! toggle-atom not)
-                    (println "toggle bottom bar")))}]]])
+                    (p "toggle bottom bar")))}]]])
 
 
 (defn bottom-bar-main []
@@ -47,7 +47,7 @@
         
         top-bar (.querySelector js/document ".rm-topbar")
         new-icon (.createElement js/document "div")]
-      (println "show bottom bar" @show-bottom-bar?)
+      (p "show bottom bar" @show-bottom-bar?)
       (set! (.-className new-child) "llm-bottom-bar")
       (set! (.-className new-icon) "llm-bottom-bar-toggle")
       (.appendChild parent-el new-child)
