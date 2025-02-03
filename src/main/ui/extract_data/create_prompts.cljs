@@ -147,75 +147,74 @@
     (dg-nodes-format all-nodes)))
 
 (defn manual-prompt-guide [action-button-uid loading-message-uid]
-  (js/Promise.
-    (fn [resolve _]
-      (go
-       (let [get-all-discourse-nodes (-> (j/call-in js/window [:roamjs :extension :queryBuilder :getDiscourseNodes])
-                                       (js->clj :keywordize-keys true))
-             nodes-info              (extract-node-info get-all-discourse-nodes)
+  (go
+   (let [get-all-discourse-nodes (-> (j/call-in js/window [:roamjs :extension :queryBuilder :getDiscourseNodes])
+                                   (js->clj :keywordize-keys true))
+         nodes-info              (extract-node-info get-all-discourse-nodes)
 
-             _ (update-block-string
-                              loading-message-uid
-                              "Querying for the discourse graph node types defined in the graph, then asking the llm to present it in predefined summary format.")
-             dg-node-types           (<! (get-dg-node-types nodes-info loading-message-uid))
-             summary                 (:summary dg-node-types)
-             entry-point             "Our lab uses Roam Research to organize our collaboration and knowledge sharing."
-             dg-nodes                (str "We capture "
-                                       summary
-                                       "\n on separate pages in Roam. Each page has a title summarizing the key insight. We call these discourse nodes.
+         _ (update-block-string
+                          loading-message-uid
+                          "Querying for the discourse graph node types defined in the graph, then asking the llm to present it in predefined summary format.")
+         dg-node-types           (<! (get-dg-node-types nodes-info loading-message-uid))
+         summary                 (:summary dg-node-types)
+         entry-point             "Our lab uses Roam Research to organize our collaboration and knowledge sharing."
+         dg-nodes                (str "We capture "
+                                   summary
+                                   "\n on separate pages in Roam. Each page has a title summarizing the key insight. We call these discourse nodes.
                                         \n Discourse graphs are an information model for bodies of knowledge that emphasize discourse moves (such as questions, claims, and evidence), and relations (such as support or opposition), rather than papers or sources as the main units.")
-             example                 (str "\n <example> \n "
-                                       (extract-example)
-                                       "\n </example> \n")
-             _                      (update-block-string
-                                       loading-message-uid
-                                       "Extracted the example of a question from the graph.")
-             your-job                (str "<your-job>
+         example                 (str "\n <example> \n "
+                                   (extract-example)
+                                   "\n </example> \n")
+         _                      (update-block-string
+                                   loading-message-uid
+                                   "Extracted the example of a question from the graph.")
+         your-job                (str "<your-job>
                                       \n Based on the text and images provided, propose some new discourse nodes.
                                       \n </your-job> \n")
-             _                      (update-block-string
-                                      loading-message-uid
-                                      "Using the discourse graph node types defined in the graph, then asking the llm to define the ontology used in our lab.")
-             lab-ontology           (str "\n <instructions> \n
+         _                      (update-block-string
+                                  loading-message-uid
+                                  "Using the discourse graph node types defined in the graph, then asking the llm to define the ontology used in our lab.")
+         lab-ontology           (str "\n <instructions> \n
                                          \n <lab-ontology> \n"
-                                         (<! (extract-lab-ontology nodes-info loading-message-uid))
-                                         "\n </lab-ontology> \n")
-             response-format        (str "<expected-response-format> \n
+                                     (<! (extract-lab-ontology nodes-info loading-message-uid))
+                                     "\n </lab-ontology> \n")
+         response-format        (str "<expected-response-format> \n
                                           \n - follow the following format, this is format of the following lines `node type - format to follow if the node is of this type`. For each suggestion put it on a new line."
-                                      (dg-nodes-format nodes-info)
-                                      " \n <Important-note> replace the `Source` with actual source. </important-note>\n \n</expected-response-format>")
-             general-instructions  (str "\n <general-important-instructions> \n 1. following the format does not mean degrading your answer quality. We want both follow the format and high quality suggestions. Make sure your {content} draws directly from the text and images provided.\n2. Please only reply with discourse node suggestions, not explanations, keep them high quality. \n</general-important-instructions>\n</instructions>\n"
-                                        "\n Extracted data from pages:
+                                  (dg-nodes-format nodes-info)
+                                  " \n <Important-note> replace the `Source` with actual source. </important-note>\n \n</expected-response-format>")
+         general-instructions  (str "\n <general-important-instructions> \n 1. following the format does not mean degrading your answer quality. We want both follow the format and high quality suggestions. Make sure your {content} draws directly from the text and images provided.\n2. Please only reply with discourse node suggestions, not explanations, keep them high quality. \n</general-important-instructions>\n</instructions>\n"
+                                    "\n Extracted data from pages:
                                          \n <data-from-pages> \n")
-             combined-prompt       (str
-                                     entry-point
-                                     dg-nodes
-                                     example
-                                     your-job
+         combined-prompt       (str
+                                 entry-point
+                                 dg-nodes
+                                 example
+                                 your-job
 
-                                     ;; can't use as of now
-                                     ;dg-nodes-description
-                                     lab-ontology
-                                     response-format
-                                     general-instructions)]
-         (update-block-string
-           loading-message-uid
-           "LLM created a prompt for this action in your graph, you can see it in your left-sidebar, please check and modify the prompt for future use.")
-         (let [prompt-uid (gen-new-uid)
-               pprompt-uid (gen-new-uid)
-               struct {:s "Prompt"
-                       :c [{:s "Pre-prompt"
-                            :u prompt-uid
-                            :c [{:s combined-prompt
-                                 :u pprompt-uid}]}]}]
-           (create-struct
-             struct
-             action-button-uid
-             prompt-uid
-             true
-             #(p "created new prompt for dg this page")
-             1)
-           (resolve combined-prompt)))))))
+                                 ;; can't use as of now
+                                 ;dg-nodes-description
+                                 lab-ontology
+                                 response-format
+                                 general-instructions)]
+     (update-block-string
+       loading-message-uid
+       "LLM created a prompt for this action in your graph, you can see it in your left-sidebar, please check and modify the prompt for future use.")
+     (let [prompt-uid (gen-new-uid)
+           pprompt-uid (gen-new-uid)
+           struct {:s "Prompt"
+                   :c [{:s "Pre-prompt"
+                        :u prompt-uid
+                        :c [{:s combined-prompt
+                             :u pprompt-uid}]}]}]
+       (create-struct
+         struct
+         action-button-uid
+         prompt-uid
+         true
+         #(p "created new prompt for dg this page")
+         1)
+       combined-prompt))))
+
 
 
 

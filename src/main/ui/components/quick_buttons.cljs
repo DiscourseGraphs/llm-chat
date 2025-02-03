@@ -142,26 +142,25 @@
                                          (create-struct struct top-parent res-block-uid false
                                            (p (str pre "Created a new `AI summary` block with uid: " res-block-uid " and parent uid: " parent-block-uid "and with context: ")))
 
-                                         (<p! (js/Promise.
-                                                (fn [_]
-                                                  (p (str pre "Calling openai api, with settings : " settings))
-                                                  (p (str pre "and messages : " messages))
-                                                  (p (str pre "Now sending message and wait for response ....."))
-                                                  (call-llm-api
-                                                    {:messages messages
-                                                     :settings settings
-                                                     :callback (fn [response]
-                                                                 (p (str pre "llm response received: " response))
-                                                                 (let [res-str (-> response
-                                                                                 :body)]
-                                                                   (update-block-string
-                                                                     res-block-uid
-                                                                     (str res-str)
-                                                                     (js/setTimeout
-                                                                       (fn []
-                                                                         (p (str pre "Updated block " res-block-uid " with response from openai api"))
-                                                                         (reset! active? false))
-                                                                       500))))})))))))))}
+                                         (do
+                                           (p (str pre "Calling openai api, with settings : " settings))
+                                           (p (str pre "and messages : " messages))
+                                           (p (str pre "Now sending message and wait for response ....."))
+                                           (call-llm-api
+                                             {:messages messages
+                                              :settings settings
+                                              :callback (fn [response]
+                                                          (p (str pre "llm response received: " response))
+                                                          (let [res-str (-> response
+                                                                          :body)]
+                                                            (update-block-string
+                                                              res-block-uid
+                                                              (str res-str)
+                                                              (js/setTimeout
+                                                                (fn []
+                                                                  (p (str pre "Updated block " res-block-uid " with response from openai api"))
+                                                                  (reset! active? false))
+                                                                500))))})))))))}
 
                       "Summarise this page"]]]])))
 

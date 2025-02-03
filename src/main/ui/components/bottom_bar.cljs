@@ -437,18 +437,15 @@
                                          parent-block-uid
                                          true
                                          (p "Ref relevant notes"))
-                                       (<p! (-> (js/Promise.
-                                                  (fn [resolve _]
-                                                    (call-llm-api
-                                                      {:messages llm-context
-                                                       :settings settings
-                                                       :callback (fn [response]
-                                                                   (let [res-str (-> response :body)]
-                                                                     (println "ONE ON ONE MEeting :::: " res-str)
-                                                                     (update-block-string
-                                                                       stage-1-block-uid
-                                                                       (str res-str))
-                                                                     (resolve (str res-str))))})))))))))}
+                                       (call-llm-api
+                                         {:messages llm-context
+                                          :settings settings
+                                          :callback (fn [response]
+                                                      (let [res-str (-> response :body)]
+                                                        (println "ONE ON ONE MEeting :::: " res-str)
+                                                        (update-block-string
+                                                          stage-1-block-uid
+                                                          (str res-str))))})))))}
 
           "Summarise last 1:1 meeting"]]))))
 
@@ -587,61 +584,56 @@
                                         parent-block-uid
                                         true
                                         (p "Ref relevant notes"))
-                                       (<p! (-> (js/Promise.
-                                                  (fn [resolve _]
-                                                    (call-llm-api
-                                                      {:messages llm-context
-                                                       :settings settings
-                                                       :callback (fn [response]
-                                                                   (let [res-str (-> response :body)]
-                                                                     (println "Stage 1 :::: " res-str)
-                                                                     (update-block-string
-                                                                       stage-1-block-uid
-                                                                       (str res-str))
-                                                                     (resolve (str res-str))))})))
-                                                (.then (fn [stage-1-res]
-                                                         (-> (image-to-text-for
-                                                                 all-images-in-latest-meeting
-                                                                 (atom image-count)
-                                                                 (atom true)
-                                                                 image-prompt
-                                                                 (atom  400))
-                                                           (.then (fn [_] stage-1-res)))))
-                                                (.then (fn [stage-1-res]
-                                                         (let [raw-lab-update-notes (ffirst (q '[:find (pull ?eid [{:block/children ...} :block/string :block/order :block/uid])
-                                                                                                 :in $ ?eid]
-                                                                                              (uid->eid lab-updates-uid)))
-                                                               stage-2-prompt        (str step-2-prompt
-                                                                                       "\n"
-                                                                                       "Raw data: "
-                                                                                       raw-lab-update-notes
-                                                                                       "\n"
-                                                                                       "Summary: "
-                                                                                       stage-1-res)
-                                                               llm-context           [{:role "user"
-                                                                                       :content stage-2-prompt}]]
-                                                            (println stage-2-prompt)
-                                                            (call-llm-api
-                                                              {:messages llm-context
-                                                               :settings settings
-                                                               :callback (fn [response]
-                                                                           (let [suggestions (js->clj (js/JSON.parse (-> response
-                                                                                                                       :body
-                                                                                                                       (str/replace #"```json\s*" "") ; Remove ```json
-                                                                                                                       (str/replace #"```\s*$" "")    ; Remove trailing ```
-                                                                                                                       str/trim
-                                                                                                                       extract-from-code-block))
-                                                                                               :keywordize-keys true)]
-                                                                             (println "Stage 2 :::: " suggestions ref-block-uid)
-                                                                             (doseq [sug suggestions]
-                                                                               (create-new-block
-                                                                                 ref-block-uid
-                                                                                 "last"
-                                                                                 (str "((" (:uid sug) "))")
-                                                                                 #()))
-                                                                             (js/setTimeout
-                                                                               (fn [] (reset! active? false))
-                                                                               500)))}))))))))))}
+                                       (image-to-text-for
+                                         all-images-in-latest-meeting
+                                         (atom image-count)
+                                         (atom true)
+                                         image-prompt
+                                         (atom  400))
+                                       (let [stage-1-res  (call-llm-api
+                                                            {:messages llm-context
+                                                             :settings settings
+                                                             :callback (fn [response]
+                                                                         (let [res-str (-> response :body)]
+                                                                           (println "Stage 1 :::: " res-str)
+                                                                           (update-block-string
+                                                                             stage-1-block-uid
+                                                                             (str res-str))
+                                                                           (str res-str)))})
+                                             raw-lab-update-notes (ffirst (q '[:find (pull ?eid [{:block/children ...} :block/string :block/order :block/uid])
+                                                                               :in $ ?eid]
+                                                                            (uid->eid lab-updates-uid)))
+                                             stage-2-prompt        (str step-2-prompt
+                                                                     "\n"
+                                                                     "Raw data: "
+                                                                     raw-lab-update-notes
+                                                                     "\n"
+                                                                     "Summary: "
+                                                                     stage-1-res)
+                                             llm-context           [{:role "user"
+                                                                     :content stage-2-prompt}]]
+                                         (println stage-2-prompt)
+                                         (call-llm-api
+                                           {:messages llm-context
+                                            :settings settings
+                                            :callback (fn [response]
+                                                        (let [suggestions (js->clj (js/JSON.parse (-> response
+                                                                                                    :body
+                                                                                                    (str/replace #"```json\s*" "") ; Remove ```json
+                                                                                                    (str/replace #"```\s*$" "")    ; Remove trailing ```
+                                                                                                    str/trim
+                                                                                                    extract-from-code-block))
+                                                                            :keywordize-keys true)]
+                                                          (println "Stage 2 :::: " suggestions ref-block-uid)
+                                                          (doseq [sug suggestions]
+                                                            (create-new-block
+                                                              ref-block-uid
+                                                              "last"
+                                                              (str "((" (:uid sug) "))")
+                                                              #()))
+                                                          (js/setTimeout
+                                                            (fn [] (reset! active? false))
+                                                            500)))}))))))}
           "Reference relevant notes"]]))))
 
 

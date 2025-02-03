@@ -44,7 +44,7 @@
          top-parent          (if (nil? already-suggested?)
                                open-page-uid
                                already-suggested?)]
-     (println "already-suggested? " already-suggested? open-page-uid)
+     (p "already-suggested? " already-suggested? open-page-uid)
      (create-struct
        struct
        top-parent
@@ -64,7 +64,6 @@
                pre-prompt
                suggestion-uid
                open-page-uid]
-  (go
     (let [pre                "*Discourse graph this page* "
           title              (uid->title open-page-uid)
           nodes              (if (nil? title)
@@ -95,34 +94,33 @@
                                 :max-tokens  @default-max-tokens}
                                (when (= "gemini" @default-model)
                                  {:safety-settings (get-safety-settings block-uid)}))]
-        (<p! (js/Promise.
-               (fn [_]
-                 (p (str pre "Calling openai api, with settings : " settings))
-                 (p (str pre "and messages : " messages))
-                 (p "context""\n ******************** \n" pre-prompt)
-                 (p (str pre "Now sending message and wait for response ....."))
-                 (call-llm-api
-                   {:messages messages
-                    :settings settings
-                    :callback (fn [response]
-                                (p (str pre "llm response received: " response))
-                                (let [res-str             (map
-                                                            (fn [s]
-                                                              (when (not-empty s)
-                                                                {:s (str s)}))
-                                                            (-> response
-                                                              :body
-                                                              clojure.string/split-lines))]
-                                  (p "suggestions: " res-str)
-                                  (do
-                                    (create-struct
-                                      {:u suggestion-uid
-                                       :c (vec res-str)}
-                                      suggestion-uid
-                                      nil
-                                      false
-                                      (js/setTimeout
-                                        (fn []
-                                          (p (str pre "Updated block " suggestion-uid " with suggestions from openai api"))
-                                          (reset! active? false))
-                                        500)))))})))))))
+        (do
+          (p (str pre "Calling openai api, with settings : " settings))
+          (p (str pre "and messages : " messages))
+          (p "context""\n ******************** \n" pre-prompt)
+          (p (str pre "Now sending message and wait for response ....."))
+          (call-llm-api
+            {:messages messages
+             :settings settings
+             :callback (fn [response]
+                         (p (str pre "llm response received: " response))
+                         (let [res-str             (map
+                                                     (fn [s]
+                                                       (when (not-empty s)
+                                                         {:s (str s)}))
+                                                     (-> response
+                                                       :body
+                                                       clojure.string/split-lines))]
+                           (p "suggestions: " res-str)
+                           (do
+                             (create-struct
+                               {:u suggestion-uid
+                                :c (vec res-str)}
+                               suggestion-uid
+                               nil
+                               false
+                               (js/setTimeout
+                                 (fn []
+                                   (p (str pre "Updated block " suggestion-uid " with suggestions from openai api"))
+                                   (reset! active? false))
+                                 500)))))}))))

@@ -53,31 +53,30 @@
                                    (if (not (some? @pre-prompt))
                                      (do
                                        (println "create bare struct")
-                                       (-> (js/Promise.
-                                             (fn [resolve _]
-                                               (do
-                                                (println "create bare struct")
-                                                (create-bare-struct open-page-uid suggestion-uid loading-message-uid
-                                                  "Setting this up: This graph does not have a pre-prompt yet, setting up the prompt now...")
-                                                (resolve :done))))
-                                           (.then (fn []
-                                                   (println "get prompt")
-                                                   (manual-prompt-guide dgp-discourse-graph-page-uid loading-message-uid)))
-                                           (.then (fn [prompt]
-                                                    (reset! pre-prompt prompt)
-                                                    (println "ask llm" @pre-prompt pre-prompt)
-                                                    (ask-llm
-                                                        block-uid
-                                                        default-model
-                                                        default-temp
-                                                        default-max-tokens
-                                                        get-linked-refs?
-                                                        extract-query-pages?
-                                                        extract-query-pages-ref?
-                                                        active?
-                                                        @pre-prompt
-                                                        suggestion-uid
-                                                        open-page-uid)))))
+                                       (<!
+                                         (do
+                                          (println "create bare struct")
+                                          (create-bare-struct open-page-uid suggestion-uid loading-message-uid
+                                            "Setting this up: This graph does not have a pre-prompt yet, setting up the prompt now...")))
+                                       (do
+                                        (println "get prompt")
+                                        (let [prompt (<! (manual-prompt-guide dgp-discourse-graph-page-uid loading-message-uid))]
+                                          (println "prompt" prompt)
+                                          (reset! pre-prompt prompt)))
+                                       (do
+                                         (println "ask llm" @pre-prompt pre-prompt)
+                                         (ask-llm
+                                           block-uid
+                                           default-model
+                                           default-temp
+                                           default-max-tokens
+                                           get-linked-refs?
+                                           extract-query-pages?
+                                           extract-query-pages-ref?
+                                           active?
+                                           @pre-prompt
+                                           suggestion-uid
+                                           open-page-uid)))
                                      (do
                                        (println "pre prompt exists")
                                        (create-bare-struct

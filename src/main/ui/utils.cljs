@@ -9,13 +9,15 @@
     [applied-science.js-interop :as j]
     [clojure.string :as str]))
 
-
 (defn log
-  [& args]  (apply js/console.log args))
+  [& args]
+  (when ^boolean goog.DEBUG
+    (apply js/console.log args)))
+
 
 (defn p [& args]
-  (apply println (str "CL: ") args))
-
+  (when ^boolean goog.DEBUG
+    (apply println (str "CL: ") args)))
 
 (def markdown-image-pattern #"!\[([^\]]*)\]\((.*?)\)")
 ;; ---- Datascript specific ------
@@ -257,7 +259,7 @@
 (defn watch-children [block-uid cb]
   (let [pull-pattern "[:block/uid :block/order :block/string {:block/children ...}]"
         entity-id (str [:block/uid block-uid])]
-    (println "add pull watch :" entity-id)
+    (p "add pull watch :" entity-id)
     (add-pull-watch pull-pattern entity-id cb)))
 
 (defn watch-string [block-uid cb]
@@ -428,9 +430,7 @@
   (-> (j/call-in js/window [:roamAlphaAPI :data :block :move]
         (clj->js {:location {:parent-uid parent-uid
                              :order       order}
-                  :block    {:uid    block-uid}}))
-    (.then (fn []
-             #_(println "new block in messages")))))
+                  :block    {:uid    block-uid}}))))
 
 
 (defn create-new-block [parent-uid order string callback]
@@ -484,9 +484,7 @@
   ([title uid]
    (-> (j/call-in js/window [:roamAlphaAPI :data :page :create]
          (clj->js {:page {:title title
-                          :uid   uid}}))
-     (.then (fn []
-              #_(println "new page created"))))))
+                          :uid   uid}})))))
 
 ;; The keys s - string, c - children, u - uid, op - open, o - order
 #_(extract-struct
@@ -548,9 +546,7 @@
                           (do
                            (p "Window added to right sidebar")
                            (j/call-in js/window [:roamAlphaAPI :ui :rightSidebar :open])))))))
-
-      (<p! (js/Promise. (fn [_]
-                          cb)))))))
+      cb))))
 
 (def gemini-safety-settings-struct
   {:s "Safety settings"
@@ -874,6 +870,7 @@
   (let [model (model-type (:model settings))
         new-settings {:model (:model settings)}]
     (println "MODEL NAME" model)
+    (println "calling llm api" messages settings callback)
     (case model
       :o1         (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-complete"
                     messages new-settings callback)
@@ -945,47 +942,44 @@
 
 
 (defn image-to-text-for [nodes total-images-atom loading-atom image-prompt-str max-tokens]
-  (js/Promise.
-    (fn [resolve _]
-      (doseq [node nodes]
-        (let [url      (-> node :match :url)
-              uid      (-> node :uid)
-              text     (-> node :match :text)
-              block-string (-> node :string)
-              messages [{:role "user"
-                         :content [{:type "text"
-                                    :text (str image-prompt-str)}
-                                   {:type "image_url"
-                                    :image_url {:url url}}]}]
-              settings  {:model       "gpt-4-vision-preview"
-                         :max-tokens  @max-tokens
-                         :temperature 0.9}
-              callback (fn [response]
-                          (let [res-str          (-> response
-                                                   :body)
-                                new-url          (str "![" res-str "](" url ")")
-                                new-block-string (str/replace block-string markdown-image-pattern new-url)
-                                new-count        (dec @total-images-atom)]
-                            (p "image to text for uid" uid)
-                            (p "Old image description: " text)
-                            (p "old block string" block-string)
-                            (p "Image to text response received, new image description: " res-str)
-                            (p "New block string" new-block-string)
-                            (p "Images to describe count: " @total-images-atom)
-                            (if (zero? new-count)
-                              (do
-                                (p "All images described")
-                                (reset! loading-atom false)
-                                (resolve true))
-                              (swap! total-images-atom dec))
-                            (update-block-string
-                              uid
-                              new-block-string)))]
-          (p "Messages for image to text" messages)
-          (call-llm-api
-            {:messages messages
-             :settings settings
-             :callback callback}))))))
+  (doseq [node nodes]
+    (let [url      (-> node :match :url)
+          uid      (-> node :uid)
+          text     (-> node :match :text)
+          block-string (-> node :string)
+          messages [{:role "user"
+                     :content [{:type "text"
+                                :text (str image-prompt-str)}
+                               {:type "image_url"
+                                :image_url {:url url}}]}]
+          settings  {:model       "gpt-4-vision-preview"
+                     :max-tokens  @max-tokens
+                     :temperature 0.9}
+          callback (fn [response]
+                      (let [res-str          (-> response
+                                               :body)
+                            new-url          (str "![" res-str "](" url ")")
+                            new-block-string (str/replace block-string markdown-image-pattern new-url)
+                            new-count        (dec @total-images-atom)]
+                        (p "image to text for uid" uid)
+                        (p "Old image description: " text)
+                        (p "old block string" block-string)
+                        (p "Image to text response received, new image description: " res-str)
+                        (p "New block string" new-block-string)
+                        (p "Images to describe count: " @total-images-atom)
+                        (if (zero? new-count)
+                          (do
+                            (p "All images described")
+                            (reset! loading-atom false))
+                          (swap! total-images-atom dec))
+                        (update-block-string
+                          uid
+                          new-block-string)))]
+      (p "Messages for image to text" messages)
+      (call-llm-api
+        {:messages messages
+         :settings settings
+         :callback callback}))))
 
 
 ;; ---- UI ---

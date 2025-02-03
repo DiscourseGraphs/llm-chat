@@ -82,34 +82,32 @@
 
                             (do
                               (if (some? messages-uid)
-                                (<p! (create-new-block
-                                       messages-uid
-                                       "last"
-                                       (str "**User:** ^^get context on:^^ " tref)
-                                       #()))
+                                (create-new-block
+                                  messages-uid
+                                  "last"
+                                  (str "**User:** ^^get context on:^^ " tref)
+                                  #())
                                 (create-struct struct top-parent res-block-uid false
                                   (p "Got new context")))
-                             (<p! (js/Promise.
-                                    (fn [_]
-                                      (call-llm-api
-                                        {:messages llm-context
-                                         :settings settings
-                                         :callback (fn [response]
-                                                     (let [res-str (-> response :body)]
-                                                       (if (some? messages-uid)
-                                                         (create-new-block
-                                                           messages-uid
-                                                           "last"
-                                                           (str "**Assistant:** " res-str)
-                                                           (js/setTimeout
-                                                             (fn [] (reset! active? false))
-                                                             500))
-                                                         (update-block-string
-                                                           res-block-uid
-                                                           (str res-str)
-                                                           (js/setTimeout
-                                                             (fn [] (reset! active? false))
-                                                             500)))))}))))))))}
+                             (call-llm-api
+                               {:messages llm-context
+                                :settings settings
+                                :callback (fn [response]
+                                            (let [res-str (-> response :body)]
+                                              (if (some? messages-uid)
+                                                (create-new-block
+                                                  messages-uid
+                                                  "last"
+                                                  (str "**Assistant:** " res-str)
+                                                  (js/setTimeout
+                                                    (fn [] (reset! active? false))
+                                                    500))
+                                                (update-block-string
+                                                  res-block-uid
+                                                  (str res-str)
+                                                  (js/setTimeout
+                                                    (fn [] (reset! active? false))
+                                                    500)))))})))))}
            "Get context"]]])))
 
 
@@ -128,8 +126,6 @@
     :children
     first
     :string)
-
-
   (sort-by :order (:children (get-child-of-child-with-str-on-page
                                "LLM chat settings" "Quick action buttons" "Get context" "Prompt")))
 
@@ -205,32 +201,30 @@
                                                        :u res-block-uid}]}]
                           (do
                             (if (some? messages-uid)
-                              (<p! (create-new-block
-                                     messages-uid
-                                     "last"
-                                     (str "**User:** ^^get suggestion on:^^ " tref)
-                                     #()))
+                              (create-new-block
+                                messages-uid
+                                "last"
+                                (str "**User:** ^^get suggestion on:^^ " tref)
+                                #())
                               (create-struct struct top-parent res-block-uid false
                                 (p "Got new suggestion")))
-                           (<p! (js/Promise.
-                                  (fn [_]
-                                    (call-llm-api
-                                      {:messages llm-context
-                                       :settings settings
-                                       :callback (fn [response]
-                                                   (let [res-str (-> response :body)]
-                                                     (if (some? messages-uid)
-                                                       (create-new-block
-                                                         messages-uid
-                                                         "last"
-                                                         (str "**Assistant:** " res-str)
-                                                         (js/setTimeout
-                                                           (fn [] (reset! active? false))
-                                                           500))
-                                                       (update-block-string
-                                                         res-block-uid
-                                                         (str res-str)
-                                                         (js/setTimeout
-                                                           (fn [] (reset! active? false))
-                                                           500)))))}))))))))}
+                           (call-llm-api
+                             {:messages llm-context
+                              :settings settings
+                              :callback (fn [response]
+                                          (let [res-str (-> response :body)]
+                                            (if (some? messages-uid)
+                                              (create-new-block
+                                                messages-uid
+                                                "last"
+                                                (str "**Assistant:** " res-str)
+                                                (js/setTimeout
+                                                  (fn [] (reset! active? false))
+                                                  500))
+                                              (update-block-string
+                                                res-block-uid
+                                                (str res-str)
+                                                (js/setTimeout
+                                                  (fn [] (reset! active? false))
+                                                  500)))))})))))}
          "Get Suggestions"]]]))
