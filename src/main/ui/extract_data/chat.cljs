@@ -12,7 +12,9 @@
                                "AI: Get suggestions for next steps"
                                "AI Discourse node suggestions"
                                "AI: Discourse node suggestions"
-                               "{{llm-dg-suggestions}}"})
+                               "AI: Prior work"
+                               "{{llm-dg-suggestions}}"
+                               "Can't let it go"})
 
 (comment
   (contains? skip-blocks-with-string "{{ chat-llm }}"))
@@ -75,6 +77,7 @@
   (get-all-images-for-node "Test: Image to text" false true)
   (get-all-images-for-node "testing 3" false)
   (get-all-images-for-node "YNWR7PAne" true)
+  (get-all-images-for-node "Qr3-5Zogr" #_"YNWR7PAne" true)
   (get-all-images-for-node "[[EVD]] - Cryo electron tomography of actin branches in SKMEL2 cells showed a branching angle of 68 ± 15 degrees - @serwas2022mechanistic" false)
   (get-all-images-for-node "[[EVD]] - NWASP was found around clusters of clathrin heavy chain by TIRF microscopy + super resolution microscopy - [[@leyton-puig2017flat]]" false)
   (get-all-images-for-node "[[QUE]] - What is the rate at which cofilin binds actin filaments?" false))
@@ -145,27 +148,75 @@
     @result))
 
 
+(defn extract-strings-with-level [{:keys [tree extract-query-pages? only-pages? vision? level-threshold]}]
+  (let [result (atom [])
+        stack (atom [[tree 0]])] ; Track depth with each node
+    (while (not (empty? @stack))
+      (let [[node depth] (peek @stack)
+            string (replace-block-uids (:string node))
+            block-ref? (when string (re-seq (re-pattern "\\(\\(\\(?([^)]*)\\)?\\)\\)") (:string node)))
+            query-block? (= string "{{query block}}")
+            refed-qry-block? (and query-block?
+                               (some? block-ref?))
+            node-uid (if refed-qry-block?
+                       (second (first block-ref?))
+                       (:uid node))
+            current-image? (if string (extract-markdown-image string) false)
+            embed? (when (some? string)
+                     (ffirst (not-empty (extract-embeds (:string node)))))
+            children (atom (:children node))]
+        (swap! stack pop)
+        (when (and string
+                (not (contains? skip-blocks-with-string string)))
+          (if (< depth level-threshold)
+            ; For levels below threshold, include both UID and string
+            (swap! result conj {:uid node-uid :string string})
+            ; For level at threshold and deeper, previous behavior
+            (cond
+              (and query-block?
+                extract-query-pages?) (let [query-result (-> (j/call-in js/window [:roamjs :extension :queryBuilder :runQuerySync] node-uid)
+                                                           (js->clj :keywordize-keys true))]
+                                        (doseq [n query-result]
+                                          (let [nstr (:text n)
+                                                page? (some? (uid->title (:uid n)))]
+                                            (cond
+                                              (not page?) (swap! result conj (replace-block-uids nstr))
+                                              only-pages? (swap! result conj (str "[[" nstr "]]"))
+                                              :else (let [ext [(-> (extract-all-data nstr)
+                                                                 (sort-children))]]
+                                                      (swap! stack conj [(first ext) (inc depth)]))))))
+              embed?                  (do
+                                        (swap! result conj (:string embed?))
+                                        (swap! children concat (:children embed?)))
+              (and (not vision?)
+                current-image?)       (swap! result conj (:text current-image?))
+              :else                   (swap! result conj string))))
+        ; Add children to stack with incremented depth
+        (doseq [child (reverse (sort-by :order @children))]
+          (when (and
+                  (not query-block?)
+                  (not (contains? skip-blocks-with-string string)))
+            (swap! stack conj [child (inc depth)])))))
+    @result))
+
 (defn get-children-for [{:keys [node block? extract-query-pages? only-pages? vision?]}]
    (p "Inside get children for particular page or block function: " node)
-   (let [eid               (cond
-                             (int? node) node
-                             block?   (uid->eid node)
-                             :else    (get-eid node))
-        ; _ (p "eid" eid)
-         raw-children-data (ffirst (q '[:find (pull ?eid [{:block/children ...} :block/string :block/order :block/uid])
-                                        :in $ ?eid]
-                                     eid))
-         embed?             (when block? (ffirst (not-empty (extract-embeds (:string raw-children-data)))))
-         sorted-by-children (sort-children raw-children-data)
-         extracted-strings  (extract-strings {:tree                 (if embed? embed? sorted-by-children)
-                                              :extract-query-pages? (or extract-query-pages? false)
-                                              :only-pages?          only-pages?
-                                              :vision?              vision?})]
-
-    ; (p "Successfully extracted children for page or block with node: " node)
-     (if only-pages?
-       {:extracted-query-pages extracted-strings}
-       {:plain-text extracted-strings})))
+   (when-let [eid   (cond
+                      (int? node) node
+                      block?   (uid->eid node)
+                      :else    (get-eid node))]
+        (let [raw-children-data (ffirst (q '[:find (pull ?eid [{:block/children ...} :block/string :block/order :block/uid])
+                                             :in $ ?eid]
+                                          eid))
+              embed?             (when block? (ffirst (not-empty (extract-embeds (:string raw-children-data)))))
+              sorted-by-children (sort-children raw-children-data)
+              extracted-strings  (extract-strings {:tree                 (if embed? embed? sorted-by-children)
+                                                   :extract-query-pages? (or extract-query-pages? false)
+                                                   :only-pages?          only-pages?
+                                                   :vision?              vision?})]
+          (if only-pages?
+            {:extracted-query-pages extracted-strings}
+            {:plain-text extracted-strings}))))
 
 
 (comment
@@ -181,11 +232,9 @@
                      :only-pages? false
                      :get-linked-refs? true})
 
-  (get-children-for {:node "G5U5UaV7F"
-                     :block? true
-                     :get-linked-refs? false
-                     :only-pages? true
-                     :extract-query-pages? true}))
+  (get-children-for {:node "Testing" ;"Qr3-5Zogr"   ; "G5U5UaV7F"
+                     :only-pages? true}))
+
 
 
 (defn extract-ref-data-for [title ref-eid ref-block-parents]
@@ -260,7 +309,7 @@
 (defn node-count [t]
   (filter
     #(let [s (second %)]
-       (println s)
+       (p s)
        (when (clojure.string/starts-with? s (str "[[" t "]]"))
          %))
     dg-nodes))
@@ -293,7 +342,7 @@
 
 
 (defn get-all-data-for [{:keys [title get-linked-refs? block? extract-query-pages? only-pages? vision?]}]
-  (p "Inside get all data for particular page function")
+  (p "Inside get all data for particular page function" title)
   (let [children (get-children-for {:node                 title
                                     :block?               block?
                                     :extract-query-pages? extract-query-pages?
@@ -337,7 +386,7 @@
 
 (comment
   ;; ------------------
-
+  (data-for-nodes {:nodes ["Testing"]})
   (data-for-nodes {:nodes ["testing 5"
                            "testing 2"]
                    :vision? true})
@@ -476,7 +525,9 @@
         current-message (atom (str "{: title " title " \n  :body \n "))
         ref-map         (extract-for-message-array
                           refs
-                          (str ":linked-refs \n ")
+                          (if (some? refs)
+                            (str ":linked-refs \n ")
+                            (str ":linked-refs NONE \n "))
                           "}")]
     (doseq [message messages]
       (let [current-image? (when (string? message) (extract-markdown-image message))]
@@ -503,7 +554,7 @@
 
 
 (defn extract-query-pages [{:keys [context get-linked-refs? extract-query-pages? only-pages? vision?]}]
-  (p "extract query pages context: ")
+  (p "extract query pages context:")
   (let [res (atom [])]
     (doseq [child (:children context)]
       (p "child: " child)
@@ -635,6 +686,12 @@
      :extract-query-pages? true
      :only-pages?          true
      :vision?              false})
+  (extract-query-pages
+    {:context              {:children [{:order 0, :string "[[Testing]]", :uid "idyAjL4Xd"}],}
+     ;:get-linked-refs?     true
+     ;:extract-query-pages? true
+     :only-pages?          true})
+     ;:vision?              false})
 
   (extract-query-pages
     {:context              {:children [{:order 0, :string
@@ -653,7 +710,10 @@
      :vision?              true})
 
  (extract-query-pages
-   {:context              {:children [{:order 0, :string "((4y3qbZBo1))", :uid "idyAjL4Xd"}],}
-    :vision?              true}))
+   {:context              {:children [{:order 0, :string "((Qr3-5Zogr))" #_"((4y3qbZBo1))", :uid "idyAjL4Xd"}],}
+    :vision? true
+    :only-pages? false}))
+
+
 
 

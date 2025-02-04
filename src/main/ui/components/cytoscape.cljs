@@ -3,7 +3,7 @@
            [reagent.dom :as rd]
            [ui.utils :refer [q]]
            ["@blueprintjs/core" :as bp :refer [ControlGroup Checkbox Tooltip HTMLSelect Button ButtonGroup Card Slider Divider Menu MenuItem Popover MenuDivider]]
-           [ui.utils :refer [get-title-with-uid]]
+           [ui.utils :refer [p get-title-with-uid]]
            [ui.extract-data.dg :refer [determine-node-type all-dg-nodes get-all-discourse-node-from-akamatsu-graph-for]]
    ["cytoscape" :as cytoscape]
    ["cytoscape-cose-bilkent" :as cose-bilkent]))
@@ -92,7 +92,7 @@
     (doall
      (map
        (fn [node]
-           (println "Get cyto format processing: " node)
+           (p "Get cyto format processing: " node)
            (let [res (get-all-discourse-node-from-akamatsu-graph-for node)
                  edges (convert-to-cytoscape-edges (:edges res))
                  nodes (convert-to-cytoscape-nodes (:nodes res) @all-nodes)
@@ -307,7 +307,7 @@
 
 
 (defn cytoscape-component [block-uid cy-el elements extra-data]
-  (println "cytoscape component")
+  (p "cytoscape component")
   (fn []
     [:div.cytoscape-container
      [:div
@@ -321,7 +321,7 @@
 
 
 (defn cytoscape-initial-component [block-uid message]
-  (println "Initial cytoscape component")
+  (p "Initial cytoscape component")
   [:div
    {:class-name (str "cytoscape-main-" block-uid)}
    message

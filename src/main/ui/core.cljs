@@ -86,15 +86,10 @@
     (when (= (.-type mutation) "childList")
       (doseq [node (array-seq (.-addedNodes mutation))]
         (when (instance? js/Element node)
-          (go
-            (when-some [match (first (get-matches node "bp3-button" "BUTTON"))]
-              (<p!
-                (js/Promise.
-                  (fn [resolve reject]
-                    (js/console.time "load ui")
-                    (load-ui match)
-                    (js/console.timeEnd "load ui")
-                    (resolve match)))))))))))
+          (when-some [match (first (get-matches node "bp3-button" "BUTTON"))]
+            (js/console.time "load ui")
+            (load-ui match)
+            (js/console.timeEnd "load ui")))))))
 
 
 (defn start-observing []

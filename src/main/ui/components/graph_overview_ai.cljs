@@ -41,7 +41,7 @@
                                (p "*Load filtered pages into chat* :button clicked")
                                (let [chat-block-uid (j/call-in js/window [:roamAlphaAPI :util :generateUID])
                                      context-block-uid (j/call-in js/window [:roamAlphaAPI :util :generateUID])]
-                                 ;(println "chat-block-uid" chat-block-uid context-block-uid)
+                                 ;(p "chat-block-uid" chat-block-uid context-block-uid)
                                  (create-chat-ui-blocks-for-selected-overview
                                    chat-block-uid
                                    context-block-uid)))}

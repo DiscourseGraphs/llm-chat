@@ -40,7 +40,7 @@
     (fn [_]
      (js/console.time "chat-ui callback setup")
      (let [callback          (fn [{:keys [b-uid] :or {b-uid block-uid}}]
-                               ;(println "called callback to load context")
+                               ;(p "called callback to load context")
                                (when (not @active?)
                                  (p "*Send* Button clicked")
                                  (do
