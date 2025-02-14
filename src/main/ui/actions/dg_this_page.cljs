@@ -43,7 +43,7 @@
          top-parent          (if (nil? already-suggested?)
                                open-page-uid
                                already-suggested?)]
-     (p "already-suggested? " already-suggested? open-page-uid)
+     (p "4 already-suggested? " already-suggested? open-page-uid)
      (create-struct
        struct
        top-parent
@@ -51,6 +51,68 @@
        true))))
 
 
+(defn prepare-prompt-with-plain-context [pre-prompt model-settings]
+  (go
+   (let [ {:keys
+            [model
+             get-linked-refs?
+             extract-query-pages?
+             extract-query-pages-ref?]}
+          model-settings
+         open-page-uid      (<p! (get-open-page-uid))
+         _ (p "open page uid" open-page-uid)
+         title              (uid->title open-page-uid)
+         nodes              (if (nil? title)
+                              {:children [{:string (str "((" open-page-uid "))")}]}
+                              {:children [{:string (str "[[" title "]]" "\n")}]})
+         vision?            (= "gpt-4-vision" @model)
+         extracted-qry-pg   (extract-query-pages
+                              {:context              nodes
+                               :get-linked-refs?     @get-linked-refs?
+                               :extract-query-pages? @extract-query-pages?
+                               :only-pages?          @extract-query-pages-ref?
+                               :vision?              vision?})
+         content            (if vision?
+                                (vec
+                                  (concat
+                                    [{:type "text"
+                                      :text (str pre-prompt)}]
+                                    extracted-qry-pg))
+                                (clojure.string/join
+                                  "\n"
+                                  [(str pre-prompt)
+                                   extracted-qry-pg]))]
+     (p "5 prepare-prompt-with-plain-context" content)
+     content)))
+
+(defn get-llm-response [content
+                        block-uid
+                        model-settings]
+    (let [{:keys 
+           [model
+            temperature
+            max-tokens]}
+          model-settings 
+          pre                "*Discourse graph this page* "
+
+          messages           [{:role "user"
+                               :content content}]
+          settings           (merge
+                               {:model       (get model-mappings @model)
+                                :temperature @temperature
+                                :max-tokens  @max-tokens}
+                               (when (= "gemini" @model)
+                                 {:safety-settings (get-safety-settings block-uid)}))]
+        (do
+          (p (str pre "Calling openai api, with settings : " settings))
+          (p (str pre "and messages : " messages))
+          (p "context""\n ******************** \n" content)
+          (p (str pre "Now sending message and wait for response ....."))
+          (call-llm-api
+            {:messages messages
+             :settings settings
+             :chnl true}))))
+             
 
 (defn ask-llm [block-uid
                default-model
@@ -63,6 +125,7 @@
                pre-prompt
                suggestion-uid
                open-page-uid]
+    (p "9 ask-llm")
     (let [pre                "*Discourse graph this page* "
           title              (uid->title open-page-uid)
           nodes              (if (nil? title)
@@ -94,15 +157,15 @@
                                (when (= "gemini" @default-model)
                                  {:safety-settings (get-safety-settings block-uid)}))]
         (do
-          (p (str pre "Calling openai api, with settings : " settings))
-          (p (str pre "and messages : " messages))
-          (p "context""\n ******************** \n" pre-prompt)
-          (p (str pre "Now sending message and wait for response ....."))
+          (p "10" (str pre "Calling openai api, with settings : " settings))
+          (p "11" (str pre "and messages : " messages))
+          ;(p "context""\n ******************** \n" pre-prompt)
+          ;(p (str pre "Now sending message and wait for response ....."))
           (call-llm-api
             {:messages messages
              :settings settings
              :callback (fn [response]
-                         (p (str pre "llm response received: " response))
+                         (p "12" (str pre "llm response received: " response))
                          (let [res-str             (map
                                                      (fn [s]
                                                        (when (not-empty s)
@@ -110,7 +173,7 @@
                                                      (-> response
                                                        :body
                                                        clojure.string/split-lines))]
-                           (p "suggestions: " res-str)
+                           (p "13 suggestions: " res-str)
                            (do
                              (create-struct
                                {:u suggestion-uid

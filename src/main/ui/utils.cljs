@@ -502,8 +502,8 @@
    (let [pre   "*Creating struct*: "
          stack (atom [struct])
          res (atom [top-parent])]
-     (p pre struct)
-     (p (str pre "open in sidebar?") open-in-sidebar? "order" sidebar-pos)
+     ;(p pre struct)
+     (p "5" (str pre "open in sidebar?") open-in-sidebar? "order" sidebar-pos)
      (go
        (while (not-empty @stack)
           (let [cur                  (first @stack)
@@ -527,7 +527,7 @@
               (swap! stack rest)
               (swap! stack #(vec (concat % (sort-by :order c))))
               ;(p "block-" string "-parent-" parent #_(first @res))
-              (p (str pre "creating with args: " t  " -- " args))
+              ;(p (str pre "creating with args: " t  " -- " args))
               (cond
                 (some? t) (<p! (create-new-page t (if (some? u) u  new-uid)))
                 (some? s) (<p! (create-new-block-with-id args)))
@@ -537,14 +537,14 @@
                                                   u
                                                   new-uid))))))))
        (when open-in-sidebar?
-         (p "open window in sidebar? " open-in-sidebar?)
+         (p "6 open window in sidebar? " open-in-sidebar?)
          (<p! (-> (j/call-in js/window [:roamAlphaAPI :ui :rightSidebar :addWindow]
                     (clj->js {:window {:type "block"
                                        :block-uid chat-block-uid
                                        :order sidebar-pos}}))
                 (.then (fn []
                           (do
-                           (p "Window added to right sidebar")
+                           (p "7' Window added to right sidebar")
                            (j/call-in js/window [:roamAlphaAPI :ui :rightSidebar :open])))))))
       cb))))
 
@@ -854,18 +854,25 @@
 
 (goog-define url-endpoint "")
 
-(defn call-api [url messages settings callback]
-  (let [passphrase (j/get-in js/window [:localStorage :passphrase])
-        data    (clj->js {:documents messages
-                          :settings settings
-                          :passphrase passphrase})
-        headers {"Content-Type" "application/json"}
-        res-ch  (http/post url {:with-credentials? false
-                                :headers headers
-                                :json-params data})]
-    (take! res-ch callback)))
+(defn call-api 
+  ([url  {:keys [messages settings callback chnl]}]
+   (call-api url messages settings callback chnl))
+  ([url messages settings callback chnl]
+   (p "calling api" url (some? messages) settings callback chnl)
+   (let [passphrase (j/get-in js/window [:localStorage :passphrase])
+         data    (clj->js {:documents messages
+                           :settings settings
+                           :passphrase passphrase})
+         headers {"Content-Type" "application/json"}
+         res-ch  (http/post url {:with-credentials? false
+                                 :headers headers
+                                 :json-params data})]
+     (p "res ch")
+     (if (some? chnl)
+       (go (<! res-ch))
+       (take! res-ch callback)))))
 
-(defn call-llm-api [{:keys [messages settings callback]}]
+(defn call-llm-api [{:keys [messages settings callback chnl] :as opts}]
   (p "SETTINGS" settings)
   (let [model (model-type (:model settings))
         new-settings {:model (:model settings)}]
@@ -873,13 +880,13 @@
     (p "calling llm api" messages settings callback)
     (case model
       :o1         (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-complete"
-                    messages new-settings callback)
+                    messages new-settings callback chnl)
       :gpt        (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-complete"
-                    messages settings callback)
+                            opts)
       :claude     (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-anthropic"
-                    messages settings callback)
+                            opts)
      :gemini     (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-gemini"
-                   messages settings callback)
+                           opts)
       (p "Unknown model"))))
 
 
