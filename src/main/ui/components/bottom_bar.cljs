@@ -635,7 +635,9 @@
                                                             (fn [] (reset! active? false))
                                                             500)))}))))))}
           "Reference relevant notes"]]))))
-
+(-> (:uid (get-child-with-str (block-has-child-with-str? (title->uid "LLM chat settings") "Quick action buttons") "Discourse graph this page"))
+  (pull-deep-block-data)
+  extract-data)
 
 (defn bottom-bar-buttons []
   (js/console.time "bottom bar setup")
@@ -654,6 +656,7 @@
         dgp-context                  (r/atom (:context dgp-data))
         dgp-prompt-guide             (r/atom (:prompt-guide dgp-data))
         dgp-pre-prompt               (r/atom (:pre-prompt  dgp-data))
+        dgp-ref-relevant-prompt      (r/atom (:ref-relevant-notes-prompt  dgp-data))
 
 
         co-get-context-uid           (:uid (get-child-with-str
@@ -815,7 +818,8 @@
         dgp-extract-query-pages-ref?
         dgp-active?
         dgp-context
-        dgp-pre-prompt]
+        dgp-pre-prompt
+        dgp-ref-relevant-prompt]
 
 
        [:> Divider]

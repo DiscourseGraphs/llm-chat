@@ -209,18 +209,17 @@
   ([s]
    (extract-from-code-block s false))
   ([s v?]
-   (let [pattern         #"(?s)```javascript\n \n(.*?)\n```"
+   (let [pattern         #"(?s)```(?:javascript|json)\s*\n(.*?)\s*\n```"
          pres?           (re-find pattern s)
          relaxed-pattern #"(?s)```\s*(.*?)\s*```"
          rpres?         (re-find relaxed-pattern s)]
      (cond
-       pres?     (str (second pres?) " \n ")
-       (and v?
-         rpres?) (str (clojure.string/trim (second rpres?)) " \n ")
-       :else     (str s " \n ")))))
-
+       pres?       (str (second pres?) "\n")
+       (and v? rpres?) (str (clojure.string/trim (second rpres?)) "\n")
+       :else       (str s "\n")))))
 (comment
   (def t "Here is some code:\n```\nprint('Hello, world!')\n```")
+  (extract-from-code-block "```json\n[\n  {\"uid\": \"I-8LKVx5t\"}\n]\n```")
   (def tt "```javascript\n \nconsole.log('Hello, world!');\n```")
   (def n "```
         [[CLM]] - Actin accumulation at sites of endocytosis increases with membrane tension
@@ -1327,6 +1326,7 @@
      :model                  (get-setting "Model")
      :max-tokens             (js/parseInt (get-setting "Max tokens"))
      :pre-prompt             (get-prompt "Pre-prompt")
+     :ref-relevant-notes-prompt(get-prompt "Ref relevant notes prompt")
      :further-instructions   (get-prompt "Further instructions")
      :temperature            (js/parseFloat (get-setting "Temperature"))
      :get-linked-refs?       (= "true" (get-setting "Get linked refs"))

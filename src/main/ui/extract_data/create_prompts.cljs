@@ -169,7 +169,7 @@
                                    loading-message-uid
                                    "Extracted the example of a question from the graph.")
          your-job                (str "<your-job>
-                                      \n Based on the text and images provided, propose some new discourse nodes.
+                                      \n Based on the text and images provided, propose some NEW discourse nodes. <DO NOT> suggest existing discourse nodes from the context </ DO NOT> but to propose NEW creative discourse nodes, make connections that are present but not formalised yet.
                                       \n </your-job> \n")
          _                      (update-block-string
                                   loading-message-uid
