@@ -6,3 +6,5 @@ chmod +x linux-install.sh
 export PATH=/tmp/clojure/bin:$PATH
 yarn install
 npx shadow-cljs release app
+
+cp README.md public/app/js
