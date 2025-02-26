@@ -7,4 +7,4 @@ export PATH=/tmp/clojure/bin:$PATH
 yarn install
 npx shadow-cljs release app
 
-cp README.md public/app/js
+cp README.md public/app
