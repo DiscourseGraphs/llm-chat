@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Function to filter logs
+filter_logs() {
+  grep -v "^Downloading: " | grep -v "^Downloaded: "
+}
+
+# Start logging with filter
+exec > >(filter_logs | tee build-log.txt) 2>&1
+
 echo "=== Starting build script ==="
 
 # Install dependencies
@@ -27,13 +35,15 @@ npx shadow-cljs release app
 # Copy README.md into public/app directory
 echo "Copying README.md to public/app directory..."
 cp README.md public/app
-
+ 
 # Install Vercel Blob SDK
 echo "Installing Vercel Blob SDK..."
 npm install @vercel/blob
 
 echo "=== Starting file upload process to Vercel Blob Storage ==="
-node << 'EOF'
+
+# Save the Node.js script to a file
+cat > upload-files.js << 'EOF'
 const { readFileSync } = require('fs');
 const { join } = require('path');
 const { put } = require('@vercel/blob');
@@ -91,4 +101,12 @@ console.log("DEBUG: Blob token length =", token.length);
 })();
 EOF
 
+# Run the upload script
+node upload-files.js
+
 echo "=== Build script finished ==="
+
+# Optional: Display important build artifacts
+echo "=== Build Summary ==="
+echo "Files in public/app directory:"
+ls -la public/app
