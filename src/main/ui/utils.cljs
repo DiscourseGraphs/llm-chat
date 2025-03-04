@@ -814,7 +814,7 @@
    "claude-3.5-sonnet" "claude-3-5-sonnet-latest"
    "claude-3.5-haiku"  "claude-3-5-haiku-latest"
    "claude-3-haiku"    "claude-3-haiku-20240307"
-   "gemini-2.0-flash"  "gemini-2.0-flash-exp"
+   "gemini-2.0-flash"  "gemini-2.0-flash-001"
    "gemini-pro"        "gemini-2.0-pro-exp-02-05"
    "gemini-exp"        "gemini-2.0-pro-exp-02-05"})
 
