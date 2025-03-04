@@ -646,7 +646,7 @@
         dgp-data                     (-> dgp-discourse-graph-page-uid
                                        (pull-deep-block-data)
                                        extract-data)
-        dgp-default-model            (r/atom (:model dgp-data))
+        dgp-default-model            (r/atom "gemini-2.0-flash")
         dgp-default-temp             (r/atom (:temperature dgp-data))
         dgp-default-max-tokens       (r/atom (:max-tokens dgp-data))
         dgp-get-linked-refs?         (r/atom (:get-linked-refs? dgp-data))

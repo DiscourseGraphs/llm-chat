@@ -815,7 +815,8 @@
    "claude-3.5-haiku"  "claude-3-5-haiku-latest"
    "claude-3-haiku"    "claude-3-haiku-20240307"
    "gemini-2.0-flash"  "gemini-2.0-flash-exp"
-   "gemini-exp"        "gemini-exp-1206"})
+   "gemini-pro"        "gemini-2.0-pro-exp-02-05"
+   "gemini-exp"        "gemini-2.0-pro-exp-02-05"})
 
 
 (defn model-type [model-name]
@@ -1114,14 +1115,14 @@
                         (update-block-string-for-block-with-child block-uid "Settings" "Model" "gemini-2.0-flash")
                         (reset! default-model "gemini-2.0-flash"))}]
           [:> Menu.Item
-           {:text "Gemini Experimental"
+           {:text "Gemini 2.0 Pro"
             :labelElement "$0.00"
             :should-dismiss-popover dismiss-popover?
             :on-click (fn [e]
                         #_(js/console.log "clicked menu item" e)
-                        (p "chose gemini-exp")
-                        (update-block-string-for-block-with-child block-uid "Settings" "Model" "gemini-exp")
-                        (reset! default-model "gemini-exp"))}]
+                        (p "chose gemini-pro")
+                        (update-block-string-for-block-with-child block-uid "Settings" "Model" "gemini-pro")
+                        (reset! default-model "gemini-pro"))}]
           [button-with-tooltip
            "For text only context you can consider the reasoning ability, context length and pricing of the models.
         Note that if your context is say 50k tokens and you do back-and-forth with the llm 10 times then your
