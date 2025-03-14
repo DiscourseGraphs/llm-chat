@@ -3,7 +3,7 @@
     - Divided into 3 blocks:
         - Context (top grey background one)
             - Here you put the context if you want the chat to have some e.g a roam page, a block uid or a block embed. The plugin will automatically extract the notes from the page's or the children of a block uid.
-        - Message (middle blue background one)
+        - Message (middle blue background one) 
             - This is where the chat messages between the user and llm will be shown, user's message are prefixed with **User:** and the reply from llms with **Assistant**
             - There are 3 buttons (excluding `Tokens used: xxx`) at the bottom of the messages block
                 - ![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fresultsgraph%2FX8pFtQltCD.png?alt=media&token=0a30a897-0409-4736-b429-8da4e461af29)

@@ -14,7 +14,6 @@
         children (sort-by :order (:children @context))]
     (doseq [child children]
       (let [child-str (:string child)]
-        ;(println "res " child-str)
         (swap! res str  (str child-str "\n"))))
     res))
 
@@ -41,7 +40,6 @@
 
 
       (fn [_]
-        #_(println "--" (get-child-of-child-with-str-on-page "llm chat" "Quick action buttons" button-name "Context"))
         [:> ButtonGroup
          {:class-name "button-with-settings"
           :style {:overflow "hidden"
@@ -142,26 +140,25 @@
                                          (create-struct struct top-parent res-block-uid false
                                            (p (str pre "Created a new `AI summary` block with uid: " res-block-uid " and parent uid: " parent-block-uid "and with context: ")))
 
-                                         (<p! (js/Promise.
-                                                (fn [_]
-                                                  (p (str pre "Calling openai api, with settings : " settings))
-                                                  (p (str pre "and messages : " messages))
-                                                  (p (str pre "Now sending message and wait for response ....."))
-                                                  (call-llm-api
-                                                    {:messages messages
-                                                     :settings settings
-                                                     :callback (fn [response]
-                                                                 (p (str pre "llm response received: " response))
-                                                                 (let [res-str (-> response
-                                                                                 :body)]
-                                                                   (update-block-string
-                                                                     res-block-uid
-                                                                     (str res-str)
-                                                                     (js/setTimeout
-                                                                       (fn []
-                                                                         (p (str pre "Updated block " res-block-uid " with response from openai api"))
-                                                                         (reset! active? false))
-                                                                       500))))})))))))))}
+                                         (do
+                                           (p (str pre "Calling openai api, with settings : " settings))
+                                           (p (str pre "and messages : " messages))
+                                           (p (str pre "Now sending message and wait for response ....."))
+                                           (call-llm-api
+                                             {:messages messages
+                                              :settings settings
+                                              :callback (fn [response]
+                                                          (p (str pre "llm response received: " response))
+                                                          (let [res-str (-> response
+                                                                          :body)]
+                                                            (update-block-string
+                                                              res-block-uid
+                                                              (str res-str)
+                                                              (js/setTimeout
+                                                                (fn []
+                                                                  (p (str pre "Updated block " res-block-uid " with response from openai api"))
+                                                                  (reset! active? false))
+                                                                500))))})))))))}
 
                       "Summarise this page"]]]])))
 
@@ -251,120 +248,4 @@
             "Generate image descriptions"
             #_(str "Generate description for: " @description-for)]]]])))
 
-(defn discourse-graph-this-page-button [block-uid
-                                        default-model
-                                        default-temp
-                                        default-max-tokens
-                                        get-linked-refs?
-                                        extract-query-pages?
-                                        extract-query-pages-ref?
-                                        active?
-                                        context]
-    (fn [_]
-      #_(println "--" (get-child-of-child-with-str-on-page "llm chat" "Quick action buttons" button-name "Context"))
-      [:> ButtonGroup
-       {:class-name "button-with-settings"
-        :style {:overflow "hidden"
-                :display "flex"
-                :flex-direction "row"
-                :justify-content "space-between"
-                :align-items "center"
-                :flex "1 1 1"}
-        :minimal true}
-       [:div {:style {:flex "1 1 1"}}
-        [button-with-tooltip
-         "LLM proposes candidate discourse nodes based on the context of the current page (including zoomed-in pages). "
-         [:> Button {:minimal true
-                     :small true
-                     :loading @active?
-                     :on-click (fn [e]
-                                 (when (not @active?)
-                                   (reset! active? true))
-                                 (go
-                                   (let [pre                "*Discourse graph this page* "
-                                         open-page-uid      (<p! (get-open-page-uid))
-                                         title              (uid->title open-page-uid)
-                                         nodes              (if (nil? title)
-                                                              {:children [{:string (str "((" open-page-uid "))")}]}
-                                                              {:children [{:string (str "[[" title "]]" "\n")}]})
-                                         vision?            (= "gpt-4-vision" @default-model)
-                                         extracted-qry-pg   (extract-query-pages
-                                                              {:context              nodes
-                                                               :get-linked-refs?     @get-linked-refs?
-                                                               :extract-query-pages? @extract-query-pages?
-                                                               :only-pages?          @extract-query-pages-ref?
-                                                               :vision?              vision?})
-                                         context-c          (extract-context-children-data-as-str context)
-                                         content            (if vision?
-                                                              (vec
-                                                                (concat
-                                                                  [{:type "text"
-                                                                    :text (str @context-c)}]
-                                                                  extracted-qry-pg))
-                                                              (clojure.string/join
-                                                                "\n"
-                                                                [(str @context-c)
-                                                                 extracted-qry-pg]))
-                                         messages           [{:role "user"
-                                                              :content content}]
-                                         settings           (merge
-                                                              {:model       (get model-mappings @default-model)
-                                                               :temperature @default-temp
-                                                               :max-tokens  @default-max-tokens}
-                                                              (when (= "gemini" @default-model)
-                                                                {:safety-settings (get-safety-settings block-uid)}))
-                                         suggestion-uid     (gen-new-uid)
-                                         node-uid           (gen-new-uid)
-                                         already-suggested? (block-has-child-with-str? open-page-uid  "AI Discourse node suggestions")
-                                         struct             (if (nil? already-suggested?)
-                                                              {:s "AI: Discourse node suggestions"
-                                                               :c [{:s (str "Model: " @default-model)
-                                                                    :c [{:s "{{llm-dg-suggestions}}"
-                                                                         :op false
-                                                                         :c [{:s "Suggestions"
-                                                                              :u suggestion-uid}]}]}]}
-                                                              {:s (str "Model: " @default-model)
-                                                               :c [{:s "{{llm-dg-suggestions}}"
-                                                                    :op false
-                                                                    :c [{:s "Suggestions"
-                                                                         :u suggestion-uid}]}]})
-                                         top-parent         (if (nil? already-suggested?)
-                                                              open-page-uid
-                                                              already-suggested?)]
-                                     (do
-                                       (create-struct
-                                         struct
-                                         top-parent
-                                         nil
-                                         false)
-                                       (<p! (js/Promise.
-                                              (fn [_]
-                                                (p (str pre "Calling openai api, with settings : " settings))
-                                                (p (str pre "and messages : " messages))
-                                                (p (str pre "Now sending message and wait for response ....."))
-                                                (call-llm-api
-                                                  {:messages messages
-                                                   :settings settings
-                                                   :callback (fn [response]
-                                                               (p (str pre "llm response received: " response))
-                                                               (let [res-str             (map
-                                                                                           (fn [s]
-                                                                                             (when (not-empty s)
-                                                                                               {:s (str s)}))
-                                                                                           (-> response
-                                                                                             :body
-                                                                                             clojure.string/split-lines))]
-                                                                 (p "suggestions: " res-str)
-                                                                 (do
-                                                                   (create-struct
-                                                                     {:u suggestion-uid
-                                                                      :c (vec res-str)}
-                                                                     suggestion-uid
-                                                                     nil
-                                                                     false
-                                                                     (js/setTimeout
-                                                                       (fn []
-                                                                         (p (str pre "Updated block " suggestion-uid " with suggestions from openai api"))
-                                                                         (reset! active? false))
-                                                                       500)))))}))))))))}
-          "Discourse graph this page"]]]]))
+

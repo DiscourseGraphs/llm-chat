@@ -9,13 +9,15 @@
     [applied-science.js-interop :as j]
     [clojure.string :as str]))
 
-
 (defn log
-  [& args]  (apply js/console.log args))
+  [& args]
+  (when ^boolean goog.DEBUG
+    (apply js/console.log args)))
+
 
 (defn p [& args]
-  (apply println (str "CL: ") args))
-
+  (when ^boolean goog.DEBUG
+    (apply println (str "CL: ") args)))
 
 (def markdown-image-pattern #"!\[([^\]]*)\]\((.*?)\)")
 ;; ---- Datascript specific ------
@@ -59,6 +61,8 @@
                            [(re-pattern "^@(.*?)$") ?.*?$-regex]
                            [?node :node/title ?node-Title]
                            [(re-find ?.*?$-regex ?node-Title)]])))))
+(comment
+  (extract-all-sources))
 
 
 (defn all-dg-nodes []
@@ -114,10 +118,48 @@
  (count (q '[:find ?t
              :where [?e :node/title]])))
 
+(defn get-uid-from-localstorage []
+  (let [user-data (loop [remaining  (reader/read-string
+                                      (.getItem (.-localStorage js/window) "globalAppState"))
+                         prev       nil]
+                    (if (= "~:user" prev)
+                      (first remaining)
+                      (recur (rest remaining) (first remaining))))]
+    (loop [remaining user-data
+           prev nil]
+      (when (seq remaining)
+        (if (= "~:uid" prev)
+          (first remaining)
+          (recur (rest remaining) (first remaining)))))))
 
+(defn get-current-user []
+  (let [user-uid (get-uid-from-localstorage)
+        username (first (flatten (q '[:find (pull ?duid [*])
+                                      :in $ ?user-uid
+                                      :where
+                                      [?eid :user/uid ?user-uid]
+                                      [?eid :user/display-page ?duid]
+                                      [?duid :node/title ?username]]
+                                   user-uid)))]
+    username))
+
+
+(defn get-all-users []
+  (q '[:find (pull ?user [*])
+       :where
+       [?eid :create/user ?uid]
+       [?duid :user/display-page ?user]]))
 
 (comment
-  (flatten extract-all-sources))
+  (get-all-users)
+  (mapv
+    (fn [mdata]
+     (-> mdata
+      first
+      :title))
+    (get-all-users)))
+
+
 
 (defn uid-to-block [uid]
   (q '[:find (pull ?e [*])
@@ -167,18 +209,17 @@
   ([s]
    (extract-from-code-block s false))
   ([s v?]
-   (let [pattern #"(?s)```javascript\n \n(.*?)\n```"
-         pres? (re-find pattern s)
+   (let [pattern         #"(?s)```(?:javascript|json)\s*\n(.*?)\s*\n```"
+         pres?           (re-find pattern s)
          relaxed-pattern #"(?s)```\s*(.*?)\s*```"
-         rpres? (re-find relaxed-pattern s)]
+         rpres?         (re-find relaxed-pattern s)]
      (cond
-       pres?     (str (second pres?) " \n ")
-       (and v?
-         rpres?) (str (clojure.string/trim (second rpres?)) " \n ")
-       :else     (str s " \n ")))))
-
+       pres?       (str (second pres?) "\n")
+       (and v? rpres?) (str (clojure.string/trim (second rpres?)) "\n")
+       :else       (str s "\n")))))
 (comment
   (def t "Here is some code:\n```\nprint('Hello, world!')\n```")
+  (extract-from-code-block "```json\n[\n  {\"uid\": \"I-8LKVx5t\"}\n]\n```")
   (def tt "```javascript\n \nconsole.log('Hello, world!');\n```")
   (def n "```
         [[CLM]] - Actin accumulation at sites of endocytosis increases with membrane tension
@@ -217,7 +258,7 @@
 (defn watch-children [block-uid cb]
   (let [pull-pattern "[:block/uid :block/order :block/string {:block/children ...}]"
         entity-id (str [:block/uid block-uid])]
-    (println "add pull watch :" entity-id)
+    (p "add pull watch :" entity-id)
     (add-pull-watch pull-pattern entity-id cb)))
 
 (defn watch-string [block-uid cb]
@@ -388,13 +429,11 @@
   (-> (j/call-in js/window [:roamAlphaAPI :data :block :move]
         (clj->js {:location {:parent-uid parent-uid
                              :order       order}
-                  :block    {:uid    block-uid}}))
-    (.then (fn []
-             #_(println "new block in messages")))))
+                  :block    {:uid    block-uid}}))))
 
 
 (defn create-new-block [parent-uid order string callback]
-  #_(println "create new block" parent-uid)
+  #_(p "create new block" parent-uid)
   (-> (j/call-in js/window [:roamAlphaAPI :data :block :create]
         (clj->js {:location {:parent-uid parent-uid
                              :order       order}
@@ -423,7 +462,7 @@
         (clj->js {:block {:uid    block-uid
                           :string string}}))
     (.then (fn []
-             #_(println "-- updated block string now moving --")
+             #_(p "-- updated block string now moving --")
              (move-block parent-uid order block-uid)))))
 
 
@@ -444,9 +483,7 @@
   ([title uid]
    (-> (j/call-in js/window [:roamAlphaAPI :data :page :create]
          (clj->js {:page {:title title
-                          :uid   uid}}))
-     (.then (fn []
-              #_(println "new page created"))))))
+                          :uid   uid}})))))
 
 ;; The keys s - string, c - children, u - uid, op - open, o - order
 #_(extract-struct
@@ -459,11 +496,13 @@
   ([struct top-parent chat-block-uid open-in-sidebar?]
    (create-struct struct top-parent chat-block-uid open-in-sidebar? #()))
   ([struct top-parent chat-block-uid open-in-sidebar? cb]
+   (create-struct struct top-parent chat-block-uid open-in-sidebar? cb 0))
+  ([struct top-parent chat-block-uid open-in-sidebar? cb sidebar-pos]
    (let [pre   "*Creating struct*: "
          stack (atom [struct])
          res (atom [top-parent])]
-     (p pre struct)
-     (p (str pre "open in sidebar?") open-in-sidebar?)
+     ;(p pre struct)
+     (p "5" (str pre "open in sidebar?") open-in-sidebar? "order" sidebar-pos)
      (go
        (while (not-empty @stack)
           (let [cur                  (first @stack)
@@ -486,8 +525,8 @@
                                        :open      (if (some? op) op true)}]
               (swap! stack rest)
               (swap! stack #(vec (concat % (sort-by :order c))))
-              ;(println "block-" string "-parent-" parent #_(first @res))
-              (p (str pre "creating with args: " t  " -- " args))
+              ;(p "block-" string "-parent-" parent #_(first @res))
+              ;(p (str pre "creating with args: " t  " -- " args))
               (cond
                 (some? t) (<p! (create-new-page t (if (some? u) u  new-uid)))
                 (some? s) (<p! (create-new-block-with-id args)))
@@ -497,18 +536,16 @@
                                                   u
                                                   new-uid))))))))
        (when open-in-sidebar?
-         (p "open window in sidebar? " open-in-sidebar?)
+         (p "6 open window in sidebar? " open-in-sidebar?)
          (<p! (-> (j/call-in js/window [:roamAlphaAPI :ui :rightSidebar :addWindow]
                     (clj->js {:window {:type "block"
                                        :block-uid chat-block-uid
-                                       :order 0}}))
+                                       :order sidebar-pos}}))
                 (.then (fn []
                           (do
-                           (p "Window added to right sidebar")
+                           (p "7' Window added to right sidebar")
                            (j/call-in js/window [:roamAlphaAPI :ui :rightSidebar :open])))))))
-
-      (<p! (js/Promise. (fn [_]
-                          cb)))))))
+      cb))))
 
 (def gemini-safety-settings-struct
   {:s "Safety settings"
@@ -528,6 +565,69 @@
   (-> (j/call-in js/window [:roamAlphaAPI :ui :getFocusedBlock])
     (j/get :block-uid)))
 
+(def prior-work-struct
+  {:s "Prior work"
+   :c [{:s "Prompt"
+        :c [{:s "Step-1"
+             :c [{:s "You are a specialized scientific knowledge extractor focused on discovering and synthesizing prior work from discourse graphs. Your goal is to analyze provided discourse nodes to comprehensively understand what research has already been done in a given area. Note that there is research that has been done by paper authors and our lab-members. Your first priority is to extract the research done by our lab-members and then paper authors. You will be provided with the list of lab-member names under the tag <lab-members>. Since we use roam research you know the notest structure is like a tree so a lab member will take notes under block with their name, so gather this information from the context.\n\n<input-data-format> \n{title: \"Title of the discourse node\",\n body: \"Content of the page\",\n linked-refs: \"References made from other discourse nodes to this page\"}\n</input-data-format>\n\n<EXTRACTION-PROTOCOL>\n1. Initial Analysis\n- Identify available node types and their quantities\n- Map all cross-references between nodes \n- Note any temporal indicators (dates, sequence markers)\n\n2. Historical Pattern Recognition\nFor each node:\n- Extract explicit mentions of completed work\n- Identify researchers/labs involved\n- Capture methodologies used\n- Note key findings and outcomes\n- Document any consensus or established facts\n- Flag contradictions or uncertainties\n\n3. Cross-Reference Synthesis \n- Connect related information across different node types\n- Build chronological progression of work\n- Identify recurring themes, methods, or conclusions\n- Map knowledge clusters and their relationships\n\n4. Gap Analysis\n- Note areas where information appears incomplete\n- Identify potential missing connections\n- Flag where additional context might be needed\n</EXTRACTION-PROTOCOL>\n\n<OUTPUT-STRUCTURE>\n1. Lab Member Contributions (IFF ANY)\n\n2. Prior Work Summary\n   - Core findings and established knowledge\n   - Key methodologies and approaches used\n   - Major contributors and their contributions\n\n3. Evidence Strength Assessment\n   - Confidence levels in findings\n   - Corroboration across nodes\n   - Potential uncertainties or conflicts\n\n4. Research Timeline\n   - Chronological progression of work\n   - Evolution of understanding\n   - Major milestones and breakthroughs\n\n5. Knowledge Map\n   - Interconnected findings\n   - Relationship patterns\n   - Information clusters\n</OUTPUT-STRUCTURE>\n\n<IMPORTANT-NOTE>\n- Focus on extracting what has been definitively done\n- Maintain connections between related findings\n- Distinguish between established facts and preliminary results\n- Note the strength of evidence for each conclusion\n- Preserve attribution to original researchers/work\n</IMPORTANT-NOTE>"}]}]}
+       {:s "Settings"
+        :c [{:s "Model"
+             :c [{:s "gpt-4-vision"}]}
+            {:s "Temperature"
+             :c [{:s "0.9"}]}
+            {:s "Max tokens"
+             :c [{:s "2000"}]}
+            {:s "Get linked refs"
+             :c [{:s "true"}]}
+            {:s "Extract query pages"
+             :c [{:s "false"}]}
+            {:s "Extract query pages ref?"
+             :c [{:s "true"}]}]}]})
+
+
+(def one-on-one-meetings-struct
+  {:s "Prior work"
+   :c [{:s "Prompt"
+        :c [{:s "Step-1"
+             :c [{:s "<prompt_purpose>\nConvert unstructured lab meeting notes into organized, actionable summaries that capture research progress and knowledge development in cellular endocytosis studies using Roam Research.\n</prompt_purpose>\n\n<lab_context>\nOur research lab studies endocytosis in cells, using Roam Research as our primary knowledge management system. We conduct bi-weekly 1:1 meetings between the Principal Investigator and lab members to track progress and align research directions.\n</lab_context>\n\n<knowledge_structure>\n  <discourse_nodes>\n    <node type=\"QUE\" description=\"Question: Research inquiries needing investigation\">\n      Example: \"How does the Arp2/3 complex bind to actin filaments?\"\n    </node>\n    \n    <node type=\"CLM\" description=\"Claim: Evidence-supported assertions\"/>\n    \n    <node type=\"EVD\" description=\"Evidence: Supporting data or observations\"/>\n    \n    <node type=\"HYP\" description=\"Hypothesis: Testable explanations or predictions\"/>\n    \n    <node type=\"RES\" description=\"Result: Experimental outcomes\"/>\n    \n    <node type=\"EXP\" description=\"Experiment: Scientific procedures\"/>\n    \n    <node type=\"CON\" description=\"Conclusion: Evidence-based interpretations\"/>\n    \n    <node type=\"ISS\" description=\"Issue: Research challenges or problems\"/>\n  </discourse_nodes>\n</knowledge_structure>\n\n<input_description>\nYou will receive:\n- Unstructured 1:1 meeting notes\n- Text discussions\n- Referenced discourse nodes\n- Images and figures\n- Progress updates\n</input_description>\n\n<output_requirements>\n  <summary_structure>\n    <section name=\"Key_Insights\">\n      - Major findings and breakthroughs\n      - Critical decisions made\n      - Important new discourse nodes created\n    </section>\n    \n    <section name=\"Progress_Update\">\n      - Completed experiments and analyses\n      - Ongoing work status\n      - Upcoming priorities\n    </section>\n    \n    <section name=\"Knowledge_Network\">\n      - New discourse node connections\n      - Updated hypotheses or claims\n      - Evidence supporting or challenging existing nodes\n    </section>\n    \n    <section name=\"Action_Items\">\n      - Tasks assigned\n      - Resource requirements\n      - Timeline commitments\n    </section>\n  </summary_structure>\n</output_requirements>\n\n<processing_instructions>\n1. Prioritize discourse nodes as they form the backbone of our knowledge structure\n2. Maintain clear connections between related nodes\n3. Ensure the summary serves as an effective daily reference\n4. Highlight critical dependencies and decision points\n5. Include specific references to Roam Research pages\n</processing_instructions>\n\n\n<usage_guidelines>\nThe output should:\n- Be detailed enough for daily reference\n- Maintain research continuity\n- Guide work until next meeting\n- Track progress effectively\n- Preserve knowledge relationships\n</usage_guidelines>"}]}
+            {:s "Step-2"
+             :c [{:s "Extract the relevant notes for a specific lab member from the provided hierarchical roam graph data.\n\nYour objective is to extract nodes (i.e., blocks) containing the `uid` and `string` fields based on relevancy present in the provided summary. The relevant nodes should be identified according to the summary's references to the raw Roam data. Ensure the extracted blocks follow proper rules to handle the hierarchical structure as detailed below.\n\n<Task-Details>\n\n- You will be given:\n  - Raw data - A hierarchical tree structure representing a Roam Research graph.\n  - Summary - A plain text containing only data present in the raw Roam data. The summary serves as a filter for the relevant nodes.\n\n- Follow these extraction rules:\n  1. **Rule 1:** If *all* blocks within a parent node are mentioned in the summary, retrieve only the parent's `uid` and `string`.\n  2. **Rule 2:** If *some but not all* blocks of a parent node match the summary, retrieve the `uid` and `string` for each matching block individually.\n</Task-Details>\n\n<Understanding-the-Data-Structure>\n\n- **Nodes**:\n  - Each node is a dictionary that may contain:\n    - `:string`: Text content of the node.\n    - `:uid`: A unique identifier for the node.\n    - `:order`: An integer indicating the node's sequence relative to its siblings.\n    - `:children` (optional): A list of child nodes, each following the same structure as the parent.\n\n- **Hierarchy**:\n  - Nodes may have nested `:children`, forming a hierarchical tree structure.\n  - Nesting reflects indentation levels and parent-child relationships.\n</Understanding-the-Data-Structure>\n\n<Requirements>\n\n- Extract and show only the `uid` and `string` based on the provided summary.\n- Apply the rules outlined regarding hierarchy and specificity.\n- **For Rule 1**, if all the children of a parent are relevant, include only the parent's `uid` and `string` (effectively embedding all its children).\n- **For Rule 2**, if only some children are relevant, extract each relevant child node individually, maintaining the specificity of the extraction.\n- Ensure that the relationships between nodes are properly considered when selecting nodes.\n- Do not provide additional commentary or unrelated blocks.\n</Requirements>\n\n<Output-Format>\n\nThe output should present a list in JSON format. Each entry/element in the JSON list must contain the following fields:\n- `\"uid\"`: Corresponding to the `uid` of the extracted block.\n- `\"string\"`: Corresponding to the `string` content of the extracted block.\n<Output-Format>\n\n<Example-Output>\n[\n  {\"uid\": \"JdAOhRycm\", \"string\": \"[@clausen2017dissecting] - [Aadarsh Raghunathan]\"},\n  {\"uid\": \"Dh55R-KAr\", \"string\": \"[[[[EVD]] - The distance between the membrane...\"}\n]\n  </Example-Output>\n\n<Notes>\n- **Important Distinction**: Rule 1 is particularly nuanced in handling parent-child relationships. If all child nodes are mentioned in the summary, include *only* the parent's `uid` and `string`. This is akin to embedding the entire structure in one reference.\n- When extracting nodes hierarchically, make sure to apply Rules 1 and 2 precisely.\n- Do **not** include any blocks that are irrelevant or not mentioned in the provided summary.\n- Ensure proper evaluation of parent-child relationships to guarantee correctness in extraction, particularly regarding whether to embed (Rule 1) or reference each child separately (Rule 2).\n</Notes>\n"}]}]}
+       {:s "Settings"
+        :c [{:s "Model"
+             :c [{:s "gpt-4-vision"}]}
+            {:s "Temperature"
+             :c [{:s "0.2"}]}
+            {:s "Max tokens"
+             :c [{:s "1400"}]}
+            {:s "Get linked refs"
+             :c [{:s "false"}]}
+            {:s "Extract query pages"
+             :c [{:s "false"}]}
+            {:s "Extract query pages ref?"
+             :c [{:s "false"}]}]}]})
+
+(def ref-relevant-notes-struct
+ {:s "Ref relevant Notes"
+  :c [{:s "Prompt"
+       :c [{:s "Step-1"
+            :c [{:s "Extract all the relevant notes for a specific lab member from the provided meeting notes.\n\nYou will be given lab update notes and individual notes from a specific member of the lab. Your task is to extract all the relevant points for that member from the lab update notes as exemplified below.\n\n<Task-Details>\n\n- You will receive:\n  - Lab update notes (e.g., shared in group meetings)\n  - Individual notes for one lab member\n- Extract and reorganize relevant points from the lab update notes, focusing only on the content that pertains to the given lab member.\n- This should include only details directly referencing their responsibilities, projects, or assignments.\n\n<Important-Criteria>\n\n- Ensure that any references, tasks, and discussions specific to the lab member are summarized effectively.\n- Contextualize the extracted information with respect to the individual's reported weekly work or focus areas.\n</Important-Criteria>\n\n<Output-Format>\n\nProduce a list of extracted notes relevant to that lab member, presented in bullet-point or paragraph form, based on the original structure.\n</Output-Format>\n\n\n</Task-Details>\n\n<Examples>\n\n<Input>\n1. Lab Update Notes:\n   - **Special group meetings**:\n     - (e.g., Dates of upcoming meetings)\n   - **Planning for the next Journal club discussion**:\n     - Papers assigned:\n       - Smith et al. 2021 - Assigned to [Member A]\n       - Parker et al. 2023 - Assigned to [Member B]\n   - **Fiji Toolset** updated for digital analysis.\n\n2. Individual Notes of Member A:\n   - Shared the weekly progress in processing Journal Club tasks.\n   - Expressed interest in getting more guidance on assigned paper—Smith et al. 2021.\n</Input>\n\n<Output>\n- Assigned Paper:\n  - Smith et al. 2021\n- Upcoming Meeting:\n  - *Special Group Meetings:* Reminder for the upcoming Journal Club meeting (relating to their paper assignment).\n- Tools Update:\n  - Fiji Toolset, relevant for their digital analysis work. \n</Output>\n\n</Examples>\n\n<Important-Notes>\n- Ignore member's personal notes about what they can't let go about this week. \n- Focus on the member's assignments, contributions or any mentions of their name.\n- Extract, condense, and re-organize information clearly for that member's perspective.\n- Ensure that details are neat, actionable, and effectively connected back to individual notes.\n</Important-Notes>\n"}]}
+           {:s "Step-2"
+            :c [{:s "Extract the relevant notes for a specific lab member from the provided hierarchical roam graph data.\n\nYour objective is to extract nodes (i.e., blocks) containing the `uid` and `string` fields based on relevancy present in the provided summary. The relevant nodes should be identified according to the summary's references to the raw Roam data. Ensure the extracted blocks follow proper rules to handle the hierarchical structure as detailed below.\n\n<Task-Details>\n\n- You will be given:\n  - Raw data - A hierarchical tree structure representing a Roam Research graph.\n  - Summary - A plain text containing only data present in the raw Roam data. The summary serves as a filter for the relevant nodes.\n\n- Follow these extraction rules:\n  1. **Rule 1:** If *all* blocks within a parent node are mentioned in the summary, retrieve only the parent's `uid` and `string`.\n  2. **Rule 2:** If *some but not all* blocks of a parent node match the summary, retrieve the `uid` and `string` for each matching block individually.\n</Task-Details>\n\n<Understanding-the-Data-Structure>\n\n- **Nodes**:\n  - Each node is a dictionary that may contain:\n    - `:string`: Text content of the node.\n    - `:uid`: A unique identifier for the node.\n    - `:order`: An integer indicating the node's sequence relative to its siblings.\n    - `:children` (optional): A list of child nodes, each following the same structure as the parent.\n\n- **Hierarchy**:\n  - Nodes may have nested `:children`, forming a hierarchical tree structure.\n  - Nesting reflects indentation levels and parent-child relationships.\n</Understanding-the-Data-Structure>\n\n<Requirements>\n\n- Extract and show only the `uid` and `string` based on the provided summary.\n- Apply the rules outlined regarding hierarchy and specificity.\n- **For Rule 1**, if all the children of a parent are relevant, include only the parent's `uid` and `string` (effectively embedding all its children).\n- **For Rule 2**, if only some children are relevant, extract each relevant child node individually, maintaining the specificity of the extraction.\n- Ensure that the relationships between nodes are properly considered when selecting nodes.\n- Do not provide additional commentary or unrelated blocks.\n</Requirements>\n\n<Output-Format>\n\nThe output should present a list in JSON format. Each entry/element in the JSON list must contain the following fields:\n- `\"uid\"`: Corresponding to the `uid` of the extracted block.\n- `\"string\"`: Corresponding to the `string` content of the extracted block.\n<Output-Format>\n\n<Example-Output>\n[\n  {\"uid\": \"JdAOhRycm\", \"string\": \"[@clausen2017dissecting] - [Aadarsh Raghunathan]\"},\n  {\"uid\": \"Dh55R-KAr\", \"string\": \"[[[[EVD]] - The distance between the membrane...\"}\n]\n  </Example-Output>\n\n<Notes>\n- **Important Distinction**: Rule 1 is particularly nuanced in handling parent-child relationships. If all child nodes are mentioned in the summary, include *only* the parent's `uid` and `string`. This is akin to embedding the entire structure in one reference.\n- When extracting nodes hierarchically, make sure to apply Rules 1 and 2 precisely.\n- Do **not** include any blocks that are irrelevant or not mentioned in the provided summary.\n- Ensure proper evaluation of parent-child relationships to guarantee correctness in extraction, particularly regarding whether to embed (Rule 1) or reference each child separately (Rule 2).\n</Notes>\n"}]}
+           {:s "Image-prompt"
+            :c [{:s "Please describe the image in detail. For context Our research goal is to uncover how the actin cytoskeleton produces force during cellular membrane bending and trafficking processes. The projects in our lab focus on the mechanical relationship between the actin cytoskeleton and mammalian endocytosis using a combination of mathematical modeling, human stem cell genome-editing, and fluorescence microscopy.\n<Important-note> DO NOT use `]` in the output. I repeat DO NOT use `]` in the output. </Important-note>"}]}]}
+      {:s "Settings"
+       :c [{:s "Model"
+            :c [{:s "gpt-4-vision"}]}
+           {:s "Temperature"
+            :c [{:s "0.2"}]}
+           {:s "Max tokens"
+            :c [{:s "1400"}]}
+           {:s "Get linked refs"
+            :c [{:s "true"}]}
+           {:s "Extract query pages"
+            :c [{:s "false"}]}
+           {:s "Extract query pages ref?"
+            :c [{:s "true"}]}]}]})
 
 (defn llm-chat-settings-page-struct []
   (let [page-uid    (gen-new-uid)
@@ -753,31 +853,39 @@
 
 (goog-define url-endpoint "")
 
-(defn call-api [url messages settings callback]
-  (let [passphrase (j/get-in js/window [:localStorage :passphrase])
-        data    (clj->js {:documents messages
-                          :settings settings
-                          :passphrase passphrase})
-        headers {"Content-Type" "application/json"}
-        res-ch  (http/post url {:with-credentials? false
-                                :headers headers
-                                :json-params data})]
-    (take! res-ch callback)))
+(defn call-api 
+  ([url  {:keys [messages settings callback chnl]}]
+   (call-api url messages settings callback chnl))
+  ([url messages settings callback chnl]
+   (p "calling api" url (some? messages) settings callback chnl)
+   (let [passphrase (j/get-in js/window [:localStorage :passphrase])
+         data    (clj->js {:documents messages
+                           :settings settings
+                           :passphrase passphrase})
+         headers {"Content-Type" "application/json"}
+         res-ch  (http/post url {:with-credentials? false
+                                 :headers headers
+                                 :json-params data})]
+     (p "res ch")
+     (if (some? chnl)
+       (go (<! res-ch))
+       (take! res-ch callback)))))
 
-(defn call-llm-api [{:keys [messages settings callback]}]
-  (println "SETTINGS" settings)
+(defn call-llm-api [{:keys [messages settings callback chnl] :as opts}]
+  (p "SETTINGS" settings)
   (let [model (model-type (:model settings))
         new-settings {:model (:model settings)}]
-    (println "MODEL NAME" model)
+    (p "MODEL NAME" model)
+    (p "calling llm api" messages settings callback)
     (case model
       :o1         (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-complete"
-                    messages new-settings callback)
+                    messages new-settings callback chnl)
       :gpt        (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-complete"
-                    messages settings callback)
+                            opts)
       :claude     (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-anthropic"
-                    messages settings callback)
+                            opts)
      :gemini     (call-api "https://roam-llm-chat-falling-haze-86.fly.dev/chat-gemini"
-                   messages settings callback)
+                           opts)
       (p "Unknown model"))))
 
 
@@ -906,7 +1014,7 @@
               :fill false
               :small true
               :loading @active?
-              :on-click #(do #_(println "clicked send message compt")
+              :on-click #(do #_(p "clicked send message compt")
                            (callback {}))}])
 
 (defn button-popover
@@ -1127,12 +1235,12 @@
                                        [0 2])
                        :on-change (fn [e]
                                     (let [fe (js/parseFloat (.toFixed e 2))]
-                                      (println "E" fe (type fe))
+                                      (p "E" fe (type fe))
                                       (update-block-string-for-block-with-child block-uid "Settings" "Temperature" (str fe))
                                       (reset! default-temp fe)))
                        :on-release (fn [e]
                                      (let [fe (js/parseFloat (.toFixed e 2))]
-                                       (println "E" fe)
+                                       (p "E" fe)
                                        (update-block-string-for-block-with-child block-uid "Settings" "Temperature" (str fe))
                                        (reset! default-temp fe)))}]]]]
         [:> MenuItem
@@ -1218,6 +1326,7 @@
      :model                  (get-setting "Model")
      :max-tokens             (js/parseInt (get-setting "Max tokens"))
      :pre-prompt             (get-prompt "Pre-prompt")
+     :ref-relevant-notes-prompt(get-prompt "Ref relevant notes prompt")
      :further-instructions   (get-prompt "Further instructions")
      :temperature            (js/parseFloat (get-setting "Temperature"))
      :get-linked-refs?       (= "true" (get-setting "Get linked refs"))

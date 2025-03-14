@@ -164,7 +164,6 @@
                                                                 (fn [n]
                                                                   (not= "{{llm-dg-suggestions}}" (:string n)))
                                                                 (sort-by :order (:children (get-child-with-str block-uid "Messages"))))
-
                                            settings           (merge
                                                                 {:model       (get model-mappings model)
                                                                  :temperature temp

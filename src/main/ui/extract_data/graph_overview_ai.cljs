@@ -4,7 +4,7 @@
     [ui.utils :as utils :refer [q]]))
 
 (defn is-discourse-node [s]
-  ;(println "-->" s)
+  ;(p "-->" s)
   (let [node ["QUE" "CLM" "EVD" "RES" "ISS" "HYP" "EXP" "CON"]
         node-regex (re-pattern (str "\\[\\[" (clojure.string/join "\\]\\]|\\[\\[" node) "\\]\\]"))
         src-regex (re-pattern "^@[^\\s]+")]
@@ -56,7 +56,7 @@
                                    #{}
                                    qry-res)]
 
-   ; (println "In qry res count:" (count qry-res))
+   ; (p "In qry res count:" (count qry-res))
     filtered-discourse-nodes))
 
 (comment
@@ -98,7 +98,7 @@
                                              acc))
                                    #{}
                                    qry-res)]
-    ;(println "Out qry res count:" (count qry-res))
+    ;(p "Out qry res count:" (count qry-res))
     filtered-discourse-nodes))
 
 
@@ -109,7 +109,7 @@
 
 
 (defn get-explorer-pages []
-  ;(println "get explorer pages")
+  ;(p "get explorer pages")
   (let [page-name (str (js->clj (first (j/call-in js/window [:roamAlphaAPI :ui :graphView :wholeGraph :getExplorePages]))))
         [in out]  (->> (j/call js/document :querySelectorAll ".bp3-slider-handle > .bp3-slider-label")
                     (map (fn [x]
@@ -120,7 +120,7 @@
         out-pages (if (> out 0)
                     (get-out-refs page-name (js/parseInt out))
                     #{})]
-    ;(println "in out - pages" in out)
+    ;(p "in out - pages" in out)
     {:page-name page-name
      :in-pages in-pages
      :out-pages out-pages}))
