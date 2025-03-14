@@ -788,7 +788,7 @@
             dgp-extract-query-pages?
             dgp-extract-query-pages-ref?]
 
-           [buttons-settings
+           #_[buttons-settings
              "Get Context"
              co-get-context-uid
              co-default-temp
@@ -797,7 +797,7 @@
              co-get-linked-refs?
              co-extract-query-pages?
              co-extract-query-pages-ref?]
-           [buttons-settings
+           #_[buttons-settings
             "Get Suggestions"
             sug-get-context-uid
             sug-default-temp
@@ -822,8 +822,8 @@
         dgp-ref-relevant-prompt]
 
 
-       [:> Divider]
-       [get-context-button
+       #_[:> Divider]
+       #_[get-context-button
         nil
         co-default-model
         co-default-temp
@@ -835,8 +835,8 @@
         co-pre-prompt
         co-remaining-prompt]
 
-       [:> Divider]
-       [:div.search-pinecone
+       #_[:> Divider]
+       #_[:div.search-pinecone
         {:style {:flex "0 0 50%"}}
         [button-with-tooltip
          "Do semantic search over existing Discourse graph nodes. Type your query and press the send button.
@@ -845,7 +845,7 @@
        [:> Divider]
 
 
-       [get-suggestions-button
+       #_[get-suggestions-button
         nil
         sug-default-model
         sug-default-temp
