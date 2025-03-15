@@ -80,7 +80,9 @@ const token = process.env.BLOB_READ_WRITE_TOKEN || 'your_blob_token_here';
     }
   }
   console.log("=== Deploy completed successfully! ===");
-  const url = `https://discoursegraphs.com/releases/${resolvedWorkspace}/${resolvedBranch}`;
+  const url = resolvedBranch === 'main'
+    ? `https://discoursegraphs.com/releases/${resolvedWorkspace}`
+    : `https://discoursegraphs.com/releases/${resolvedWorkspace}/${resolvedBranch}`;
   console.log(`✅ DEBUG: Endpoint URL: ${url}`);
 })();
 EOF
