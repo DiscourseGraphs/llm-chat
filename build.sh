@@ -79,6 +79,7 @@ const token = process.env.BLOB_READ_WRITE_TOKEN || 'your_blob_token_here';
       process.exit(1);
     }
   }
+
   console.log("=== Deploy completed successfully! ===");
   const url = resolvedBranch === 'main'
     ? `https://discoursegraphs.com/releases/${resolvedWorkspace}`
