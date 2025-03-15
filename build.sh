@@ -51,7 +51,6 @@ const files = ['README.md', 'extension.js'];
 const resolvedBranch = process.env.VERCEL_GIT_COMMIT_REF || process.env.BRANCH || 'main';
 const resolvedWorkspace = process.env.VERCEL_GIT_REPO_SLUG || process.env.WORKSPACE || 'myworkspace';
 const token = process.env.BLOB_READ_WRITE_TOKEN || 'your_blob_token_here';
-console.log("Resolved branch:", resolvedBranch, "Resolved workspace:", resolvedWorkspace, "Token:", token);
 
 (async () => {
   for (const file of files) {
